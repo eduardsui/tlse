@@ -333,6 +333,21 @@ int tls_alpn_contains(struct TLSContext *context, const char *alpn, unsigned cha
 const char *tls_alpn(struct TLSContext *context);
 // useful when renewing certificates for servers, without the need to restart the server
 int tls_clear_certificates(struct TLSContext *context);
+
+/*
+  Enable kTLS on the given socket. kTLS is only available with Linux >= 4.13,
+  only if CONFIG_TLS is set, only if the context is set as exportable, and only
+  for AES-128-GCM ciphers. AES-128-GCM ciphers will be preferred if WITH_KTLS is
+  defined. Furthermore, you can define FORCE_KTLS_COMPATIBLE_CIPHERS to reject
+  any connection that doesn't end up with such a cipher.
+
+  With kTLS, you can use regular write(), send() or sendfile() on the socket
+  and let the kernel deal with encryption. If you want to send control messages,
+  you will need to call tls_unmake_ktls() to turn off kTLS temporarily.
+
+  Returns 0 for success, or a negative value (e.g. TLS_FEATURE_NOT_SUPPORTED)
+  on failure.
+ */
 int tls_make_ktls(struct TLSContext *context, int socket);
 int tls_unmake_ktls(struct TLSContext *context, int socket);
 

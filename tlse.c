@@ -4288,6 +4288,20 @@ int tls_cipher_is_fs(struct TLSContext *context, unsigned short cipher) {
     return 0;
 }
 
+int tls_cipher_is_ktls(struct TLSContext *context, unsigned short cipher) {
+    if (!context)
+        return 0;
+    switch (cipher) {
+        case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+        case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
+        case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
+            if ((context->version == TLS_V12) || (context->version == DTLS_V12))
+                return 1;
+            break;
+    }
+    return 0;
+}
+
 int tls_choose_cipher(struct TLSContext *context, const unsigned char *buf, int buf_len, int *scsv_set) {
     int i;
     if (scsv_set)
@@ -4295,10 +4309,25 @@ int tls_choose_cipher(struct TLSContext *context, const unsigned char *buf, int 
     if (!context)
         return 0;
     int selected_cipher = TLS_NO_COMMON_CIPHER;
+#ifdef WITH_KTLS
+    /* Prefer kTLS-capable ciphers. */
+    for (i = 0; i < buf_len; i+=2) {
+        unsigned short cipher = ntohs(*(unsigned short *)&buf[i]);
+        if (tls_cipher_is_ktls(context, cipher)) {
+            selected_cipher = cipher;
+            break;
+        }
+    }
+#endif
+#ifdef FORCE_KTLS_COMPATIBLE_CIPHERS
+    if (selected_cipher == TLS_NO_COMMON_CIPHER) {
+      return TLS_NO_COMMON_CIPHER;
+    }
+#endif
 #ifdef TLS_FORWARD_SECRECY
     for (i = 0; i < buf_len; i+=2) {
         unsigned short cipher = ntohs(*(unsigned short *)&buf[i]);
-        if (tls_cipher_is_fs(context, cipher)) {
+        if (selected_cipher == TLS_NO_COMMON_CIPHER && tls_cipher_is_fs(context, cipher)) {
             selected_cipher = cipher;
             break;
         }
