@@ -1414,12 +1414,13 @@ static const unsigned char ocsp_oid[] = {0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x3
 static const unsigned char TLS_RSA_SIGN_RSA_OID[] = {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x00};
 static const unsigned char TLS_RSA_SIGN_MD5_OID[] = {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x04, 0x00};
 static const unsigned char TLS_RSA_SIGN_SHA1_OID[] = {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x05, 0x00};
+static const unsigned char TLS_RSA_SIGN_SHA224_OID[] = {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0E, 0x00};
 static const unsigned char TLS_RSA_SIGN_SHA256_OID[] = {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0B, 0x00};
 static const unsigned char TLS_RSA_SIGN_SHA384_OID[] = {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0C, 0x00};
 static const unsigned char TLS_RSA_SIGN_SHA512_OID[] = {0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0D, 0x00};
 
 // static const unsigned char TLS_ECDSA_SIGN_SHA1_OID[] = {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x01, 0x05, 0x00, 0x00};
-// static const unsigned char TLS_ECDSA_SIGN_SHA224_OID[] = {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x01, 0x05, 0x00, 0x00};
+static const unsigned char TLS_ECDSA_SIGN_SHA224_OID[] = {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x01, 0x05, 0x00, 0x00};
 static const unsigned char TLS_ECDSA_SIGN_SHA256_OID[] = {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x02, 0x05, 0x00, 0x00};
 // static const unsigned char TLS_ECDSA_SIGN_SHA384_OID[] = {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x03, 0x05, 0x00, 0x00};
 // static const unsigned char TLS_ECDSA_SIGN_SHA512_OID[] = {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x04, 0x05, 0x00, 0x00};
@@ -1542,6 +1543,7 @@ void tls_init() {
 #endif
 #endif
     register_prng(&sprng_desc);
+    register_hash(&sha224_desc);
     register_hash(&sha256_desc);
     register_hash(&sha1_desc);
     register_hash(&sha384_desc);
@@ -1846,6 +1848,16 @@ int _private_tls_verify_rsa(struct TLSContext *context, unsigned int hash_type, 
             err = sha1_done(&state, hash);
             TLS_ERROR(err, break)
             hash_len = 20;
+            break;
+        case sha224:
+            hash_idx = find_hash("sha224");
+            err = sha224_init(&state);
+            TLS_ERROR(err, break)
+            err = sha224_process(&state, message, message_len);
+            TLS_ERROR(err, break)
+            err = sha224_done(&state, hash);
+            TLS_ERROR(err, break)
+            hash_len = 28;
             break;
         case sha256:
             hash_idx = find_hash("sha256");
@@ -3580,6 +3592,9 @@ char *tls_certificate_to_string(struct TLSCertificate *cert, char *buffer, int l
                 case TLS_RSA_SIGN_SHA1:
                     res += snprintf(buffer + res, len - res, "RSA_SIGN_SHA1");
                     break;
+                case TLS_RSA_SIGN_SHA224:
+                    res += snprintf(buffer + res, len - res, "RSA_SIGN_SHA224");
+                    break;
                 case TLS_RSA_SIGN_SHA256:
                     res += snprintf(buffer + res, len - res, "RSA_SIGN_SHA256");
                     break;
@@ -3643,6 +3658,9 @@ char *tls_certificate_to_string(struct TLSCertificate *cert, char *buffer, int l
                     break;
                 case TLS_RSA_SIGN_SHA1:
                     res += snprintf(buffer + res, len - res, "RSA_SIGN_SHA1):\n");
+                    break;
+                case TLS_RSA_SIGN_SHA224:
+                    res += snprintf(buffer + res, len - res, "RSA_SIGN_SHA224):\n");
                     break;
                 case TLS_RSA_SIGN_SHA256:
                     res += snprintf(buffer + res, len - res, "RSA_SIGN_SHA256):\n");
@@ -3740,6 +3758,11 @@ void tls_certificate_set_algorithm(struct TLSContext *context, unsigned int *alg
     if (len != 9)
         return;
     
+    if (_is_oid(val, TLS_RSA_SIGN_SHA224_OID, 9)) {
+        *algorithm = TLS_RSA_SIGN_SHA224;
+        return;
+    }
+    
     if (_is_oid(val, TLS_RSA_SIGN_SHA256_OID, 9)) {
         *algorithm = TLS_RSA_SIGN_SHA256;
         return;
@@ -3767,6 +3790,11 @@ void tls_certificate_set_algorithm(struct TLSContext *context, unsigned int *alg
     
     if (_is_oid(val, TLS_RSA_SIGN_MD5_OID, 9)) {
         *algorithm = TLS_RSA_SIGN_MD5;
+        return;
+    }
+
+    if (_is_oid(val, TLS_ECDSA_SIGN_SHA224_OID, 9)) {
+        *algorithm = TLS_ECDSA_SIGN_SHA224;
         return;
     }
 
@@ -8973,6 +9001,9 @@ int _private_tls_hash_len(int algorithm) {
             return 16;
         case TLS_RSA_SIGN_SHA1:
             return 20;
+        case TLS_RSA_SIGN_SHA224:
+        case TLS_ECDSA_SIGN_SHA224:
+            return 28;
         case TLS_RSA_SIGN_SHA256:
         case TLS_ECDSA_SIGN_SHA256:
             return 32;
@@ -9015,6 +9046,20 @@ unsigned char *_private_tls_compute_hash(int algorithm, const unsigned char *mes
                 err = sha1_process(&state, message, message_len);
                 if (!err)
                     err = sha1_done(&state, hash);
+            }
+            break;
+        case TLS_RSA_SIGN_SHA224:
+        case TLS_ECDSA_SIGN_SHA224:
+            DEBUG_PRINT("SIGN SHA224\n");
+            hash = (unsigned char *)TLS_MALLOC(28);
+            if (!hash)
+                return NULL;
+            
+            err = sha224_init(&state);
+            if (!err) {
+                err = sha224_process(&state, message, message_len);
+                if (!err)
+                    err = sha224_done(&state, hash);
             }
             break;
         case TLS_RSA_SIGN_SHA256:
@@ -9080,6 +9125,10 @@ int tls_certificate_verify_signature(struct TLSCertificate *cert, struct TLSCert
             break;
         case TLS_RSA_SIGN_SHA1:
             hash_index = find_hash("sha1");
+            break;
+        case TLS_RSA_SIGN_SHA224:
+        case TLS_ECDSA_SIGN_SHA224:
+            hash_index = find_hash("sha224");
             break;
         case TLS_RSA_SIGN_SHA256:
         case TLS_ECDSA_SIGN_SHA256:

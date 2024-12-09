@@ -122,10 +122,12 @@
 #define TLS_RSA_SIGN_RSA            0x01
 #define TLS_RSA_SIGN_MD5            0x04
 #define TLS_RSA_SIGN_SHA1           0x05
+#define TLS_RSA_SIGN_SHA224         0x0A
 #define TLS_RSA_SIGN_SHA256         0x0B
 #define TLS_RSA_SIGN_SHA384         0x0C
 #define TLS_RSA_SIGN_SHA512         0x0D
 #define TLS_ECDSA_SIGN_SHA256       0x0E
+#define TLS_ECDSA_SIGN_SHA224       0x0F
 
 #define TLS_EC_PUBLIC_KEY           0x11
 #define TLS_EC_prime192v1           0x12
