@@ -6148,10 +6148,10 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
 #ifdef WITH_TLS_13
                 if ((!context->is_server) && ((context->version == TLS_V13) || (context->version == DTLS_V13))) {
 #ifdef TLS_CURVE25519
-                    extension_len += 70;
+                    extension_len += 84;
 #else
                     // secp256r1 produces 65 bytes export
-                    extension_len += 103;
+                    extension_len += 117;
 #endif
                 }
 #endif

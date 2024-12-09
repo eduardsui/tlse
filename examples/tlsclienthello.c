@@ -5,6 +5,7 @@
 
 #ifdef _WIN32
     #include <winsock2.h>
+    #pragma comment (lib, "ws2_32.lib")
     #define socklen_t int
     #define sleep(x)    Sleep(x*1000)
 #else
@@ -111,6 +112,7 @@ int main(int argc, char *argv[]) {
     struct TLSContext *context = tls_create_context(0, TLS_V12);
     // the next line is needed only if you want to serialize the connection context or kTLS is used
     tls_make_exportable(context, 1);
+    tls_sni_set(context, argv[1]);
     tls_client_connect(context);
     send_pending(sockfd, context);
     unsigned char client_message[0xFFFF];
@@ -119,7 +121,7 @@ int main(int argc, char *argv[]) {
     while ((read_size = recv(sockfd, client_message, sizeof(client_message) , 0)) > 0) {
         tls_consume_stream(context, client_message, read_size, validate_certificate);
         send_pending(sockfd, context);
-        if (tls_established(context)) {
+        if (tls_established(context) == 1) {
             if (!sent) {
                 const char *request = "GET / HTTP/1.1\r\nConnection: close\r\n\r\n";
                 // try kTLS (kernel TLS implementation in linux >= 4.13)
