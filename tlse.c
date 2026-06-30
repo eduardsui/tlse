@@ -7057,6 +7057,11 @@ int tls_parse_hello(struct TLSContext *context, const unsigned char *buf, int bu
         // SNI extension
         CHECK_SIZE(extension_len, buf_len - res, TLS_NEED_MORE_DATA)
         if (extension_type == 0x00) {
+            if (extension_len < 5) {
+                // #139 fix
+                DEBUG_PRINT("SNI EXTENSION INVALID SIZE: %i bytes\n", (int)extension_len);
+                return TLS_BROKEN_PACKET;
+            }
             // unsigned short sni_len = ntohs(*(unsigned short *)&buf[res]);
             // unsigned char sni_type = buf[res + 2];
             unsigned short sni_host_len = ntohs(*(const unsigned short *)&buf[res + 3]);
@@ -8685,6 +8690,12 @@ int tls_parse_message(struct TLSContext *context, unsigned char *buf, int buf_le
         DEBUG_PRINT("HANDSHAKE RETRANSMISSION DETECTED\n");
     }
     if ((context->cipher_spec_set) && (type != TLS_CHANGE_CIPHER)) {
+        /* AEAD records must carry at least the 8-byte explicit nonce #141 */
+        if ((context->crypto.created == 2) && (length < 8)) {
+            DEBUG_PRINT("Invalid packet AEAD records must carry at least the 8-byte explicit nonce (%i bytes received)\n", (int)length);
+            _private_random_sleep(context, TLS_MAX_ERROR_SLEEP_uS);
+            return TLS_BROKEN_PACKET;
+        }
         DEBUG_DUMP_HEX_LABEL("encrypted", &buf[header_size], length);
         if (!context->crypto.created) {
             DEBUG_PRINT("Encryption context not created\n");
@@ -9438,6 +9449,8 @@ int _private_is_oid(struct _private_OID_chain *ref_chain, const unsigned char *l
 }
 
 int _private_asn1_parse(struct TLSContext *context, struct TLSCertificate *cert, const unsigned char *buffer, unsigned int size, int level, unsigned int *fields, unsigned char *has_key, int client_cert, unsigned char *top_oid, struct _private_OID_chain *chain) {
+    if (level > TLS_ASN1_MAXLEVEL)   /* hard depth cap: prevent stack exhaustion on deeply nested ASN.1 */ #142 fix
+        return 0;
     struct _private_OID_chain local_chain;
     local_chain.top = chain;
     unsigned int pos = 0;
