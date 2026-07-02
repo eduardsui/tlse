@@ -9449,7 +9449,7 @@ int _private_is_oid(struct _private_OID_chain *ref_chain, const unsigned char *l
 }
 
 int _private_asn1_parse(struct TLSContext *context, struct TLSCertificate *cert, const unsigned char *buffer, unsigned int size, int level, unsigned int *fields, unsigned char *has_key, int client_cert, unsigned char *top_oid, struct _private_OID_chain *chain) {
-    if (level > TLS_ASN1_MAXLEVEL)   /* hard depth cap: prevent stack exhaustion on deeply nested ASN.1 */ #142 fix
+    if (level > TLS_ASN1_MAXLEVEL)   /* hard depth cap: prevent stack exhaustion on deeply nested ASN.1 (fix for #142)*/
         return 0;
     struct _private_OID_chain local_chain;
     local_chain.top = chain;
