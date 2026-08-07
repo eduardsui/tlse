@@ -1530,27 +1530,25 @@ int _private_b64_decode(const char *in_buffer, int in_buffer_size, unsigned char
     int           i, len;
     
     const char *ptr     = in_buffer;
-    char *out_ptr = (char *)out_buffer;
-    
-    while (ptr <= in_buffer + in_buffer_size) {
-        for (len = 0, i = 0; i < 4 && (ptr <= in_buffer + in_buffer_size); i++) {
+    unsigned char *out_ptr = out_buffer;
+    while (ptr < in_buffer + in_buffer_size) {
+        for (len = 0, i = 0; i < 4 && (ptr < in_buffer + in_buffer_size); i++) {
             v = 0;
-            while ((ptr <= in_buffer + in_buffer_size) && v == 0) {
+            while ((ptr < in_buffer + in_buffer_size) && v == 0) {
                 v = (unsigned char)ptr[0];
                 ptr++;
                 v = (unsigned char)((v < 43 || v > 122) ? 0 : cd64[v - 43]);
-                if (v)
+                if(v)
                     v = (unsigned char)((v == '$') ? 0 : v - 61);
             }
-            if (ptr <= in_buffer + in_buffer_size) {
+            if(v) {
                 len++;
-                if (v)
-                    in[i] = (unsigned char)(v - 1);
+                in[i] = (unsigned char)(v - 1);
             } else {
                 in[i] = 0;
             }
         }
-        if (len) {
+        if(len) {
             _private_b64_decodeblock(in, out);
             for (i = 0; i < len - 1; i++) {
                 out_ptr[0] = out[i];
@@ -1558,7 +1556,7 @@ int _private_b64_decode(const char *in_buffer, int in_buffer_size, unsigned char
             }
         }
     }
-    return (int)((intptr_t)out_ptr - (intptr_t)out_buffer);
+    return (int)(out_ptr - out_buffer);
 }
 
 void dtls_reset_cookie_secret() {
@@ -3432,7 +3430,7 @@ unsigned char *tls_pem_decode(const unsigned char *data_in, unsigned int input_l
 
 int _is_oid(const unsigned char *oid, const unsigned char *compare_to, int compare_to_len) {
     int i = 0;
-    while ((oid[i]) && (i < compare_to_len)) {
+    while (i < compare_to_len) {
         if (oid[i] != compare_to[i])
             return 0;
         
@@ -4400,8 +4398,8 @@ void _private_tls_create_hash(struct TLSContext *context) {
         int hash_size = _private_tls_mac_length(context);
         if (hash->created) {
             unsigned char temp[TLS_MAX_SHA_SIZE];
-            sha384_done(&hash->hash32, temp);
-            sha256_done(&hash->hash48, temp);
+            sha256_done(&hash->hash32, temp);
+            sha384_done(&hash->hash48, temp);
         }
         sha384_init(&hash->hash48);
         sha256_init(&hash->hash32);
@@ -9612,14 +9610,14 @@ int _private_asn1_parse(struct TLSContext *context, struct TLSCertificate *cert,
                     if ((cert->ec_algorithm) && (_is_field(fields, pk_id))) {
                         tls_certificate_set_key(cert, &buffer[pos], length);
                     } else {
-                        if ((buffer[pos] == 0x00) && (length > 256))
+                        if ((length > 256) && (buffer[pos] == 0x00))
                             _private_asn1_parse(context, cert, &buffer[pos]+1, length - 1, level + 1, fields, &local_has_key, client_cert, top_oid, &local_chain);
                         else
                             _private_asn1_parse(context, cert, &buffer[pos], length, level + 1, fields, &local_has_key, client_cert, top_oid, &local_chain);
 #ifdef TLS_FORWARD_SECRECY
     #ifdef TLS_ECDSA_SUPPORTED
                         if (top_oid) {
-                            if (_is_oid2(top_oid, TLS_EC_prime256v1_OID, sizeof(oid), sizeof(TLS_EC_prime256v1) - 1)) {
+                            if (_is_oid2(top_oid, TLS_EC_prime256v1_OID, sizeof(oid), sizeof(TLS_EC_prime256v1_OID) - 1)) {
                                 cert->ec_algorithm = secp256r1.iana;
                             } else
                             if (_is_oid2(top_oid, TLS_EC_secp224r1_OID, sizeof(oid), sizeof(TLS_EC_secp224r1_OID) - 1)) {
