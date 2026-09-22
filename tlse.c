@@ -4410,12 +4410,12 @@ void _private_tls_create_hash(struct TLSContext *context) {
         return;
     TLSHash *hash = _private_tls_ensure_hash(context);
     if ((context->version == TLS_V12) || (context->version == DTLS_V12) || (context->version == TLS_V13) || (context->version == DTLS_V13)) {
-        int hash_size = _private_tls_mac_length(context);
-        if (hash->created) {
-            unsigned char temp[TLS_MAX_SHA_SIZE];
-            sha256_done(&hash->hash32, temp);
-            sha384_done(&hash->hash48, temp);
-        }
+        // not needed (tomcrypt sha*_init doesn' make any memory allocation)
+        // if (hash->created) {
+        //     unsigned char temp[TLS_MAX_SHA_SIZE];
+        //     sha256_done(&hash->hash32, temp);
+        //     sha384_done(&hash->hash48, temp);
+        // }
         sha384_init(&hash->hash48);
         sha256_init(&hash->hash32);
         hash->created = 1;
@@ -6395,9 +6395,10 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
 
                     tls_random(context->client_secret, 32);
 
-                    context->client_secret[0] &= 248;
-                    context->client_secret[31] &= 127;
-                    context->client_secret[31] |= 64;
+                    // not needed when using tomcrypt x25519 implementation(already done there)
+                    // context->client_secret[0] &= 248;
+                    // context->client_secret[31] &= 127;
+                    // context->client_secret[31] |= 64;
 
                     curve25519_key key;
                     x25519_import_raw(context->client_secret, 32, PK_PRIVATE, &key);
