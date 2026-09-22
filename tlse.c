@@ -2734,7 +2734,9 @@ void _private_tls_prf_helper(int hash_idx, unsigned long dlen, unsigned char *ou
 #ifdef WITH_TLS_13
 int _private_tls_hkdf_label(const char *label, unsigned char label_len, const unsigned char *data, unsigned char data_len, unsigned char *hkdflabel, unsigned short length, const char *prefix) {
     *(unsigned short *)hkdflabel = htons(length);
-    int prefix_len;
+    int prefix_len = 6;
+    if ((!label) || (!hkdflabel) || (!label_len) || (label_len > 255 - prefix_len) || (data_len && !data))
+        return -1;
     if (prefix) {
         prefix_len = (int)strlen(prefix);
         memcpy(&hkdflabel[3], prefix, prefix_len);
@@ -2742,7 +2744,7 @@ int _private_tls_hkdf_label(const char *label, unsigned char label_len, const un
         memcpy(&hkdflabel[3], "tls13 ", 6);
         prefix_len = 6;
     }
-    hkdflabel[2] = (unsigned char)prefix_len + label_len;
+    hkdflabel[2] = (unsigned char)(prefix_len + label_len);
     memcpy(&hkdflabel[3 + prefix_len], label, label_len);
     hkdflabel[3 + prefix_len + label_len] = (unsigned char)data_len;
     if (data_len)
@@ -2750,7 +2752,7 @@ int _private_tls_hkdf_label(const char *label, unsigned char label_len, const un
     return 4 + prefix_len + label_len + data_len;
 }
 
-int _private_tls_hkdf_extract(unsigned int mac_length, unsigned char *output, unsigned int outlen, const unsigned char *salt, unsigned int salt_len, const unsigned char *ikm, unsigned char ikm_len) {
+int _private_tls_hkdf_extract(unsigned int mac_length, unsigned char *output, unsigned int outlen, const unsigned char *salt, unsigned int salt_len, const unsigned char *ikm, unsigned int ikm_len) {
     unsigned long dlen = outlen;
     static unsigned char dummy_label[1] = { 0 };
     if ((!salt) || (salt_len == 0)) {
@@ -2786,7 +2788,12 @@ void _private_tls_hkdf_expand(unsigned int mac_length, unsigned char *output, un
     hmac_state hmac;
     unsigned char i2 = 0;
     while (outlen) {
-        hmac_init(&hmac, hash_idx, secret, secret_len);
+        if (i2 == 255)
+            break;
+
+        if (hmac_init(&hmac, hash_idx, secret, secret_len))
+            break;
+		
         if (i2)
             hmac_process(&hmac, digest_out, dlen);
         if ((info) && (info_len))
@@ -2807,13 +2814,21 @@ void _private_tls_hkdf_expand(unsigned int mac_length, unsigned char *output, un
         if (!outlen)
             break;            
     }
+
+    memset(digest_out, 0, sizeof(digest_out));
+    memset(&hmac, 0, sizeof(hmac));
 }
 
-void _private_tls_hkdf_expand_label(unsigned int mac_length, unsigned char *output, unsigned int outlen, const unsigned char *secret, unsigned int secret_len, const char *label, unsigned char label_len, const unsigned char *data, unsigned char data_len) {
+int _private_tls_hkdf_expand_label(unsigned int mac_length, unsigned char *output, unsigned int outlen, const unsigned char *secret, unsigned int secret_len, const char *label, unsigned char label_len, const unsigned char *data, unsigned char data_len) {
     unsigned char hkdf_label[512];
+    if (outlen > 0xFFFF)
+        return TLS_GENERIC_ERROR;
     int len = _private_tls_hkdf_label(label, label_len, data, data_len, hkdf_label, outlen, NULL);
     DEBUG_DUMP_HEX_LABEL("INFO", hkdf_label, len);
+    if (len < 0)
+        return TLS_GENERIC_ERROR;
     _private_tls_hkdf_expand(mac_length, output, outlen, secret, secret_len, hkdf_label, len);
+    return 0;
 }
 #endif
 
