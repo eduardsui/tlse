@@ -10089,7 +10089,7 @@ int tls_parse_payload(struct TLSContext *context, const unsigned char *buf, int 
                     if (!context->dtls && context->session_size && !context->retryreceived)
                         _private_tls_write_packet(tls_build_change_cipher_spec(context));
                     if (context->client_verified == 2) {
-                        context->server_finished_hash = (unsigned char *)TLS_MALLOC(_private_tls_mac_length(context));
+                        context->server_finished_hash = (unsigned char *)TLS_MALLOC(TLS_MAX_MAC_SIZE);
                         if (!context->server_finished_hash)
                             return TLS_NO_MEMORY;
                         _private_tls_get_hash(context, context->server_finished_hash);
@@ -10251,7 +10251,7 @@ int tls_parse_payload(struct TLSContext *context, const unsigned char *buf, int 
                         _private_tls_write_packet(tls_build_finished(context));
                         /*  new key */
                         TLS_FREE(context->server_finished_hash);
-                        context->server_finished_hash = (unsigned char *)TLS_MALLOC(_private_tls_mac_length(context));
+                        context->server_finished_hash = (unsigned char *)TLS_MALLOC(TLS_MAX_MAC_SIZE);
                         if (context->server_finished_hash)
                             _private_tls_get_hash(context, context->server_finished_hash);
                         break;
@@ -10787,7 +10787,7 @@ int tls_parse_message(struct TLSContext *context, unsigned char *buf, int buf_le
 
 #ifdef WITH_TLS_13
     if ((context->version == TLS_V13) || (context->version == DTLS_V13)) {
-        if (/*(context->connection_status == 2) && */(type == TLS_APPLICATION_DATA) && (context->crypto.created)) {
+        if (/*(context->connection_status == 2) && */(type == TLS_APPLICATION_DATA) && (context->crypto.created) && (length > 0)) {
             do {
                 length--;
                 if (length == 0) {
