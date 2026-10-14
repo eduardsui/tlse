@@ -6541,7 +6541,7 @@ static int _private_tls_dh_probable_prime(void *number) {
     void *base;
     void *value;
     unsigned char *randombytes;
-    unsigned long remainder;
+    ltc_mp_digit remainder;
     unsigned int bytes;
     unsigned int bits;
     unsigned int shifts;
@@ -6549,7 +6549,11 @@ static int _private_tls_dh_probable_prime(void *number) {
     unsigned int square;
     int probable;
     int valid;
+#if CRYPT < 0x0118
     if (ltc_mp.isprime(number, &probable) != CRYPT_OK || !probable)
+#else
+    if (ltc_mp.isprime(number, 8, &probable) != CRYPT_OK || !probable)
+#endif
         return 0;
     if (mp_init_multi(&limit, &minusone, &exponent, &base, &value, NULL) != CRYPT_OK)
         return 0;
@@ -7448,7 +7452,7 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
                     if (!context->retrygroup)
                         extension_len += 54 + 2 * TLS_HASH_ALGO_NUMBER * TLS_SIGN_ALGO_NUMBER;
                     else
-                        extension_len += 23 + 2 * context->curve->dp.size + 2 * TLS_HASH_ALGO_NUMBER * TLS_SIGN_ALGO_NUMBER;
+                        extension_len += 23 + 2 * context->curve->size + 2 * TLS_HASH_ALGO_NUMBER * TLS_SIGN_ALGO_NUMBER;
 #else
                     /*  secp256r1 produces 65 bytes export */
                     if (!context->curve)
@@ -7591,7 +7595,7 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
                     {
                         if (!context->curve)
                             context->curve = &secp256r1;
-                        shared_key_short = 1 + 2 * context->curve->dp.size;
+                        shared_key_short = 1 + 2 * context->curve->size;
                         tls_packet_uint16(packet, shared_key_short + 6);
                         tls_packet_uint16(packet, shared_key_short + 4);
                         dp = (const ltc_ecc_set_type *)&context->curve->dp;
