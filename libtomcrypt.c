@@ -20,7 +20,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <limits.h>
 
 #if !(defined(LTM1) && defined(LTM2) && defined(LTM3))
@@ -1149,7 +1148,7 @@
 
 /* $Source$ */
 /* $Revision$ */
-/* $Date$ */ 
+/* $Date$ */
 #if !(defined(LTM1) && defined(LTM2) && defined(LTM3))
  #if defined(LTM2)
   #define LTM3
@@ -2204,10 +2203,10 @@
  #endif
 #else
  #define LTM_LAST
-#endif 
+#endif
 #else
  #define LTM_LAST
-#endif 
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -2228,6 +2227,91 @@ extern "C" {
  * At the very least a mp_digit must be able to hold 7 bits
  * [any size beyond that is ok provided it doesn't overflow the data type]
  */
+#include <stddef.h>
+#if !defined(INT8_MAX) && !defined(_INTTYPES_H_) && !defined(_INTTYPES_H) && !defined(__INTTYPES_INCLUDED)
+	#if !defined(_MACHTYPES_H_)
+		#if defined(__alpha) || (defined(_MSC_VER) && defined(_WIN32)) \
+						|| (defined(__GNUC__) && defined(_WIN32)) \
+						|| (defined(__GNUC__) && defined(__MACH__))
+			typedef unsigned int uint32_t;
+			typedef int int32_t;
+		#else
+			typedef unsigned long uint32_t;
+			#if !defined(__MWERKS__) || !defined(__MACH__)
+				typedef long int32_t;
+			#endif /*  MWERKS MACH defs int32_t but not uint32_t */
+		#endif
+		#if !defined(__MWERKS__) || !defined(__MACH__)
+			#if (defined(__GNUC__) && defined(_WIN32)) \
+					|| (defined(__GNUC__) && defined(__MACH__)) \
+					|| (defined(__GNUC__) && defined(macintosh))
+				typedef signed char int8_t;
+			#else
+				typedef char int8_t;
+			#endif
+		#endif /*  MWERKS MACH defs int8_t */
+		typedef unsigned char uint8_t;
+		typedef short int16_t;
+		typedef unsigned short uint16_t;
+		#if (defined(_MSC_VER) && defined(_WIN32) && !defined(__clang__)) \
+			|| (defined(__BCPLUSPLUS__) \
+					&& __BCPLUSPLUS__ >= 0x520 && defined(_WIN32)) \
+			|| (defined(__SC__) && defined(__DMC__)) \
+			|| (defined(__WATCOMC__) && defined(_WIN32)) \
+			|| (defined(__MWERKS__) && defined(NOCRUNTIME) && defined(_WIN32))
+			typedef __int64 int64_t; typedef unsigned __int64 uint64_t;
+			#if defined(_WIN64)
+				#define TOMCRYPT_64BIT
+			#endif
+		#elif (defined(__MINGW32__) \
+			||(defined(__clang__)) \
+			||(defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG >= 8) \
+			||(defined(__GNUC__)) \
+			||(defined(__CYGWIN__)) \
+			||(defined(__DJGPP__) && __DJGPP__ >= 2) \
+			||(defined(__MWERKS__) && !defined(NOCRUNTIME) )) \
+			||(defined(SIZEOF_LONG) && SIZEOF_LONG == 8)
+			/* && __option(longlong))) for MWERKS? */
+		#	ifndef INT64_MAX
+		#		ifndef __MWERKS__
+				typedef long long int64_t; typedef unsigned long long uint64_t;
+		#		define TOMCRYPT_64BIT
+		#		endif
+		#	elif defined(__LP64__) && !defined(_INT64_T)
+				typedef long int64_t; typedef unsigned long uint64_t;
+		#		define TOMCRYPT_64BIT
+		#	elif defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) \
+					|| defined(_M_AMD64) || defined(__ia64__) || defined(_IA64) \
+					|| defined(__ppc64__) || defined(__powerpc64__) \
+					|| defined(__aarch64__) || defined(__LP64__) || defined(_LP64)
+		#		define TOMCRYPT_64BIT
+		#	endif
+		#else /*  !(defined(_M_X64) || defined(__LP64__)) */
+			typedef long int64_t; typedef unsigned long uint64_t;
+		#endif
+		#ifdef TOMCRYPT_64BIT
+		   typedef int64_t                 intptr_t;
+		   typedef uint64_t                uintptr_t;
+		#else
+		   typedef int32_t                 intptr_t;
+		   typedef uint32_t                uintptr_t;
+		#endif
+	#else
+		typedef u_int8_t                uint8_t;
+		typedef u_int16_t               uint16_t;
+		typedef u_int32_t               uint32_t;
+		typedef u_int64_t               uint64_t;
+		#ifdef  __64BIT__
+			typedef int64_t                 intptr_t;
+			typedef uint64_t                uintptr_t;
+		#else
+			#if !defined(__APPLE_CC__) || (__APPLE_CC__ < 784)
+			   typedef int32_t                 intptr_t;
+			   typedef uint32_t                uintptr_t;
+			#endif
+		#endif
+	#endif
+#endif
 #ifdef MP_8BIT
 typedef uint8_t    mp_digit;
 typedef uint16_t   mp_word;
@@ -2244,10 +2328,6 @@ typedef uint32_t   mp_word;
  #endif
 #elif defined(MP_64BIT)
 /* for GCC only on supported platforms */
- #ifndef CRYPT
-typedef unsigned long long   ulong64;
-typedef signed long long     long64;
- #endif
 
 typedef uint64_t             mp_digit;
  #if defined(_WIN32)
@@ -2266,10 +2346,6 @@ typedef uint128_t            mp_word;
 /* this is the default case, 28-bit digits */
 
 /* this is to make porting into LibTomCrypt easier :-) */
- #ifndef CRYPT
-typedef unsigned long long   ulong64;
-typedef signed long long     long64;
- #endif
 
 typedef uint32_t             mp_digit;
 typedef uint64_t             mp_word;
@@ -2301,7 +2377,10 @@ typedef mp_digit         mp_min_u32;
 #ifdef MP_USE_ALT_RAND
  #define MP_GEN_RANDOM()    arc4random()
 #else
- #define MP_GEN_RANDOM()    rand()
+ #ifndef MP_FALLBACK_GEN_RANDOM
+  #define MP_FALLBACK_GEN_RANDOM() rand()
+ #endif
+ #define MP_GEN_RANDOM()    MP_FALLBACK_GEN_RANDOM()
 #endif
 
 #define MP_DIGIT_BIT         DIGIT_BIT
@@ -2412,8 +2491,8 @@ int mp_set_int(mp_int *a, unsigned long b);
 /* set a platform dependent unsigned long value */
 int mp_set_long(mp_int *a, unsigned long b);
 
-/* set a platform dependent unsigned long long value */
-int mp_set_long_long(mp_int *a, unsigned long long b);
+/* set a platform dependent uint64_t value */
+int mp_set_long_long(mp_int *a, uint64_t b);
 
 /* get a 32-bit value */
 unsigned long mp_get_int(mp_int *a);
@@ -2421,8 +2500,8 @@ unsigned long mp_get_int(mp_int *a);
 /* get a platform dependent unsigned long value */
 unsigned long mp_get_long(mp_int *a);
 
-/* get a platform dependent unsigned long long value */
-unsigned long long mp_get_long_long(mp_int *a);
+/* get a platform dependent uint64_t value */
+uint64_t mp_get_long_long(mp_int *a);
 
 /* initialize and set a digit */
 int mp_init_set(mp_int *a, mp_digit b);
@@ -2759,7 +2838,7 @@ int mp_fwrite(mp_int *a, int radix, FILE *stream);
 
 /* $Source$ */
 /* $Revision$ */
-/* $Date$ */ 
+/* $Date$ */
 
 /* LibTomMath, multiple-precision integer library -- Tom St Denis
  *
@@ -2780,9 +2859,9 @@ int mp_fwrite(mp_int *a, int radix, FILE *stream);
 
 #include <ctype.h>
 
-#define MIN(x, y)    (((x) < (y)) ? (x) : (y))
+#define TOMCRYPT_MIN(x, y)    (((x) < (y)) ? (x) : (y))
 
-#define MAX(x, y)    (((x) > (y)) ? (x) : (y))
+#define TOMCRYPT_MAX(x, y)    (((x) > (y)) ? (x) : (y))
 
 #ifdef __cplusplus
 extern "C" {
@@ -2876,7 +2955,7 @@ extern const char *mp_s_rmap;
 
 /* $Source$ */
 /* $Revision$ */
-/* $Date$ */ 
+/* $Date$ */
 
 #define BN_FAST_MP_INVMOD_C
 #ifdef BN_FAST_MP_INVMOD_C
@@ -3249,7 +3328,7 @@ int fast_s_mp_mul_digs(mp_int *a, mp_int *b, mp_int *c, int digs) {
     }
 
     /* number of output digits to produce */
-    pa = MIN(digs, a->used + b->used);
+    pa = TOMCRYPT_MIN(digs, a->used + b->used);
 
     /* clear the carry */
     _W = 0;
@@ -3259,7 +3338,7 @@ int fast_s_mp_mul_digs(mp_int *a, mp_int *b, mp_int *c, int digs) {
         mp_digit *tmpx, *tmpy;
 
         /* get offsets into the two bignums */
-        ty = MIN(b->used - 1, ix);
+        ty = TOMCRYPT_MIN(b->used - 1, ix);
         tx = ix - ty;
 
         /* setup temp aliases */
@@ -3269,7 +3348,7 @@ int fast_s_mp_mul_digs(mp_int *a, mp_int *b, mp_int *c, int digs) {
         /* this is the number of times the loop will iterrate, essentially
            while (tx++ < a->used && ty-- >= 0) { ... }
          */
-        iy = MIN(a->used - tx, ty + 1);
+        iy = TOMCRYPT_MIN(a->used - tx, ty + 1);
 
         /* execute loop */
         for (iz = 0; iz < iy; ++iz) {
@@ -3358,7 +3437,7 @@ int fast_s_mp_mul_high_digs(mp_int *a, mp_int *b, mp_int *c, int digs) {
         mp_digit *tmpx, *tmpy;
 
         /* get offsets into the two bignums */
-        ty = MIN(b->used - 1, ix);
+        ty = TOMCRYPT_MIN(b->used - 1, ix);
         tx = ix - ty;
 
         /* setup temp aliases */
@@ -3368,7 +3447,7 @@ int fast_s_mp_mul_high_digs(mp_int *a, mp_int *b, mp_int *c, int digs) {
         /* this is the number of times the loop will iterrate, essentially its
            while (tx++ < a->used && ty-- >= 0) { ... }
          */
-        iy = MIN(a->used - tx, ty + 1);
+        iy = TOMCRYPT_MIN(a->used - tx, ty + 1);
 
         /* execute loop */
         for (iz = 0; iz < iy; iz++) {
@@ -3462,7 +3541,7 @@ int fast_s_mp_sqr(mp_int *a, mp_int *b) {
         _W = 0;
 
         /* get offsets into the two bignums */
-        ty = MIN(a->used - 1, ix);
+        ty = TOMCRYPT_MIN(a->used - 1, ix);
         tx = ix - ty;
 
         /* setup temp aliases */
@@ -3472,13 +3551,13 @@ int fast_s_mp_sqr(mp_int *a, mp_int *b) {
         /* this is the number of times the loop will iterrate, essentially
            while (tx++ < a->used && ty-- >= 0) { ... }
          */
-        iy = MIN(a->used - tx, ty + 1);
+        iy = TOMCRYPT_MIN(a->used - tx, ty + 1);
 
         /* now for squaring tx can never equal ty
          * we halve the distance since they approach at a rate of 2x
          * and we have to round because odd cases need to be executed
          */
-        iy = MIN(iy, ((ty - tx) + 1) >> 1);
+        iy = TOMCRYPT_MIN(iy, ((ty - tx) + 1) >> 1);
 
         /* execute loop */
         for (iz = 0; iz < iy; iz++) {
@@ -6140,7 +6219,7 @@ int mp_gcd(mp_int *a, mp_int *b, mp_int *c) {
     /* B1.  Find the common power of two for u and v */
     u_lsb = mp_cnt_lsb(&u);
     v_lsb = mp_cnt_lsb(&v);
-    k     = MIN(u_lsb, v_lsb);
+    k     = TOMCRYPT_MIN(u_lsb, v_lsb);
 
     if (k > 0) {
         /* divide the power of two out */
@@ -6229,7 +6308,7 @@ unsigned long mp_get_int(mp_int *a) {
     }
 
     /* get number of digits of the lsb we have to read */
-    i = MIN(a->used, (int)(((sizeof(unsigned long) * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT)) - 1;
+    i = TOMCRYPT_MIN(a->used, (int)(((sizeof(unsigned long) * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT)) - 1;
 
     /* get most significant digit of result */
     res = DIGIT(a, i);
@@ -6276,7 +6355,7 @@ unsigned long mp_get_long(mp_int *a) {
     }
 
     /* get number of digits of the lsb we have to read */
-    i = MIN(a->used, (int)(((sizeof(unsigned long) * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT)) - 1;
+    i = TOMCRYPT_MIN(a->used, (int)(((sizeof(unsigned long) * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT)) - 1;
 
     /* get most significant digit of result */
     res = DIGIT(a, i);
@@ -6309,17 +6388,17 @@ unsigned long mp_get_long(mp_int *a) {
  * Tom St Denis, tstdenis82@gmail.com, http://libtom.org
  */
 
-/* get the lower unsigned long long of an mp_int, platform dependent */
-unsigned long long mp_get_long_long(mp_int *a) {
+/* get the lower uint64_t of an mp_int, platform dependent */
+uint64_t mp_get_long_long(mp_int *a) {
     int i;
-    unsigned long long res;
+    uint64_t res;
 
     if (a->used == 0) {
         return 0;
     }
 
     /* get number of digits of the lsb we have to read */
-    i = MIN(a->used, (int)(((sizeof(unsigned long long) * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT)) - 1;
+    i = TOMCRYPT_MIN(a->used, (int)(((sizeof(uint64_t) * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT)) - 1;
 
     /* get most significant digit of result */
     res = DIGIT(a, i);
@@ -7232,7 +7311,7 @@ int mp_karatsuba_mul(mp_int *a, mp_int *b, mp_int *c) {
     err = MP_MEM;
 
     /* min # of digits */
-    B = MIN(a->used, b->used);
+    B = TOMCRYPT_MIN(a->used, b->used);
 
     /* now divide in two */
     B = B >> 1;
@@ -8004,13 +8083,13 @@ int mp_mul(mp_int *a, mp_int *b, mp_int *c) {
 
     /* use Toom-Cook? */
  #ifdef BN_MP_TOOM_MUL_C
-    if (MIN(a->used, b->used) >= TOOM_MUL_CUTOFF) {
+    if (TOMCRYPT_MIN(a->used, b->used) >= TOOM_MUL_CUTOFF) {
         res = mp_toom_mul(a, b, c);
     } else
  #endif
  #ifdef BN_MP_KARATSUBA_MUL_C
     /* use Karatsuba? */
-    if (MIN(a->used, b->used) >= KARATSUBA_MUL_CUTOFF) {
+    if (TOMCRYPT_MIN(a->used, b->used) >= KARATSUBA_MUL_CUTOFF) {
         res = mp_karatsuba_mul(a, b, c);
     } else
  #endif
@@ -8025,7 +8104,7 @@ int mp_mul(mp_int *a, mp_int *b, mp_int *c) {
 
  #ifdef BN_FAST_S_MP_MUL_DIGS_C
         if ((digs < MP_WARRAY) &&
-            (MIN(a->used, b->used) <=
+            (TOMCRYPT_MIN(a->used, b->used) <=
              (1 << ((CHAR_BIT * sizeof(mp_word)) - (2 * DIGIT_BIT))))) {
             res = fast_s_mp_mul_digs(a, b, c, digs);
         } else
@@ -9047,7 +9126,7 @@ int mp_prime_next_prime(mp_int *a, int t, int bbs_style) {
             goto LBL_ERR;
         }
 
-        /* if didn't pass sieve and step == MAX then skip test */
+        /* if didn't pass sieve and step == TOMCRYPT_MAX then skip test */
         if ((y == 1) && (step >= ((((mp_digit)1) << DIGIT_BIT) - kstep))) {
             continue;
         }
@@ -10279,8 +10358,8 @@ MP_SET_XLONG(mp_set_long, unsigned long)
  * Tom St Denis, tstdenis82@gmail.com, http://libtom.org
  */
 
-/* set a platform dependent unsigned long long int */
-MP_SET_XLONG(mp_set_long_long, unsigned long long)
+/* set a platform dependent uint64_t int */
+MP_SET_XLONG(mp_set_long_long, uint64_t)
 #endif
 
 /* $Source$ */
@@ -11025,7 +11104,7 @@ int mp_toom_mul(mp_int *a, mp_int *b, mp_int *c) {
     }
 
     /* B */
-    B = MIN(a->used, b->used) / 3;
+    B = TOMCRYPT_MIN(a->used, b->used) / 3;
 
     /* a = a2 * B**2 + a1 * B + a0 */
     if ((res = mp_mod_2d(a, DIGIT_BIT * B, &a0)) != MP_OKAY) {
@@ -11935,7 +12014,7 @@ s_mp_add(mp_int *a, mp_int *b, mp_int *c) {
  *
  * Tom St Denis, tstdenis82@gmail.com, http://libtom.org
  */
- 
+
 int s_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y, int redmode) {
     mp_int   M[TAB_SIZE], res, mu;
     mp_digit buf;
@@ -12199,7 +12278,7 @@ int s_mp_mul_digs(mp_int *a, mp_int *b, mp_int *c, int digs) {
 
     /* can we use the fast multiplier? */
     if (((digs) < MP_WARRAY) &&
-        (MIN(a->used, b->used) <
+        (TOMCRYPT_MIN(a->used, b->used) <
          (1 << ((CHAR_BIT * sizeof(mp_word)) - (2 * DIGIT_BIT))))) {
         return fast_s_mp_mul_digs(a, b, c, digs);
     }
@@ -12216,7 +12295,7 @@ int s_mp_mul_digs(mp_int *a, mp_int *b, mp_int *c, int digs) {
         u = 0;
 
         /* limit ourselves to making digs digits of output */
-        pb = MIN(b->used, digs - ix);
+        pb = TOMCRYPT_MIN(b->used, digs - ix);
 
         /* setup some aliases */
         /* copy of the digit from a used within the nested loop */
@@ -12292,7 +12371,7 @@ s_mp_mul_high_digs(mp_int *a, mp_int *b, mp_int *c, int digs) {
     /* can we use the fast multiplier? */
  #ifdef BN_FAST_S_MP_MUL_HIGH_DIGS_C
     if (((a->used + b->used + 1) < MP_WARRAY) &&
-        (MIN(a->used, b->used) < (1 << ((CHAR_BIT * sizeof(mp_word)) - (2 * DIGIT_BIT))))) {
+        (TOMCRYPT_MIN(a->used, b->used) < (1 << ((CHAR_BIT * sizeof(mp_word)) - (2 * DIGIT_BIT))))) {
         return fast_s_mp_mul_high_digs(a, b, c, digs);
     }
  #endif
@@ -13377,7 +13456,7 @@ void crypt_argchk(char *v, char *s, int d) {
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_custom.h,v $ */
 /* $Revision: 1.73 $ */
-/* $Date: 2007/05/12 14:37:41 $ */ 
+/* $Date: 2007/05/12 14:37:41 $ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -13435,7 +13514,7 @@ enum {
 
    CRYPT_HASH_OVERFLOW,     /* Hash applied to too many bits */
    CRYPT_PW_CTX_MISSING,    /* Password context to decrypt key file is missing */
-   CRYPT_UNKNOWN_PEM,       /* The PEM header was not recognized */
+   CRYPT_UNKNOWN_PEM       /* The PEM header was not recognized */
 };
 
 /* This is the build config file.
@@ -13582,17 +13661,13 @@ LTC_EXPORT int LTC_CALL XSTRCMP(const char *s1, const char *s2);
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_cfg.h,v $ */
 /* $Revision: 1.19 $ */
-/* $Date: 2006/12/04 02:19:48 $ */ 
+/* $Date: 2006/12/04 02:19:48 $ */
 
 /* fix for MSVC ...evil! */
 #ifdef _MSC_VER
  #define CONST64(n)    n ## ui64
-typedef unsigned __int64     ulong64;
-typedef __int64 long64;
 #else
  #define CONST64(n)    n ## ULL
-typedef unsigned long long   ulong64;
-typedef long long long64;
 #endif
 
 /* this is the "32-bit at least" data type
@@ -13624,10 +13699,10 @@ typedef unsigned long        ulong32;
       (y)[1] = (unsigned char)(((x) >> 8) & 255); (y)[0] = (unsigned char)((x) & 255); }
 
  #define LOAD64L(x, y)                                                            \
-    { x = (((ulong64)((y)[7] & 255)) << 56) | (((ulong64)((y)[6] & 255)) << 48) | \
-          (((ulong64)((y)[5] & 255)) << 40) | (((ulong64)((y)[4] & 255)) << 32) | \
-          (((ulong64)((y)[3] & 255)) << 24) | (((ulong64)((y)[2] & 255)) << 16) | \
-          (((ulong64)((y)[1] & 255)) << 8) | (((ulong64)((y)[0] & 255))); }
+    { x = (((uint64_t)((y)[7] & 255)) << 56) | (((uint64_t)((y)[6] & 255)) << 48) | \
+          (((uint64_t)((y)[5] & 255)) << 40) | (((uint64_t)((y)[4] & 255)) << 32) | \
+          (((uint64_t)((y)[3] & 255)) << 24) | (((uint64_t)((y)[2] & 255)) << 16) | \
+          (((uint64_t)((y)[1] & 255)) << 8) | (((uint64_t)((y)[0] & 255))); }
 
  #define STORE32H(x, y)                                                                         \
     { (y)[0] = (unsigned char)(((x) >> 24) & 255); (y)[1] = (unsigned char)(((x) >> 16) & 255); \
@@ -13646,10 +13721,10 @@ typedef unsigned long        ulong32;
       (y)[6] = (unsigned char)(((x) >> 8) & 255); (y)[7] = (unsigned char)((x) & 255); }
 
  #define LOAD64H(x, y)                                                            \
-    { x = (((ulong64)((y)[0] & 255)) << 56) | (((ulong64)((y)[1] & 255)) << 48) | \
-          (((ulong64)((y)[2] & 255)) << 40) | (((ulong64)((y)[3] & 255)) << 32) | \
-          (((ulong64)((y)[4] & 255)) << 24) | (((ulong64)((y)[5] & 255)) << 16) | \
-          (((ulong64)((y)[6] & 255)) << 8) | (((ulong64)((y)[7] & 255))); }
+    { x = (((uint64_t)((y)[0] & 255)) << 56) | (((uint64_t)((y)[1] & 255)) << 48) | \
+          (((uint64_t)((y)[2] & 255)) << 40) | (((uint64_t)((y)[3] & 255)) << 32) | \
+          (((uint64_t)((y)[4] & 255)) << 24) | (((uint64_t)((y)[5] & 255)) << 16) | \
+          (((uint64_t)((y)[6] & 255)) << 8) | (((uint64_t)((y)[7] & 255))); }
 #endif /* ENDIAN_NEUTRAL */
 
 #ifdef ENDIAN_LITTLE
@@ -13708,10 +13783,10 @@ typedef unsigned long        ulong32;
       (y)[6] = (unsigned char)(((x) >> 8) & 255); (y)[7] = (unsigned char)((x) & 255); }
 
   #define LOAD64H(x, y)                                                           \
-    { x = (((ulong64)((y)[0] & 255)) << 56) | (((ulong64)((y)[1] & 255)) << 48) | \
-          (((ulong64)((y)[2] & 255)) << 40) | (((ulong64)((y)[3] & 255)) << 32) | \
-          (((ulong64)((y)[4] & 255)) << 24) | (((ulong64)((y)[5] & 255)) << 16) | \
-          (((ulong64)((y)[6] & 255)) << 8) | (((ulong64)((y)[7] & 255))); }
+    { x = (((uint64_t)((y)[0] & 255)) << 56) | (((uint64_t)((y)[1] & 255)) << 48) | \
+          (((uint64_t)((y)[2] & 255)) << 40) | (((uint64_t)((y)[3] & 255)) << 32) | \
+          (((uint64_t)((y)[4] & 255)) << 24) | (((uint64_t)((y)[5] & 255)) << 16) | \
+          (((uint64_t)((y)[6] & 255)) << 8) | (((uint64_t)((y)[7] & 255))); }
  #endif
 
  #ifdef ENDIAN_32BITWORD
@@ -13729,10 +13804,10 @@ typedef unsigned long        ulong32;
       (y)[1] = (unsigned char)(((x) >> 8) & 255); (y)[0] = (unsigned char)((x) & 255); }
 
   #define LOAD64L(x, y)                                                           \
-    { x = (((ulong64)((y)[7] & 255)) << 56) | (((ulong64)((y)[6] & 255)) << 48) | \
-          (((ulong64)((y)[5] & 255)) << 40) | (((ulong64)((y)[4] & 255)) << 32) | \
-          (((ulong64)((y)[3] & 255)) << 24) | (((ulong64)((y)[2] & 255)) << 16) | \
-          (((ulong64)((y)[1] & 255)) << 8) | (((ulong64)((y)[0] & 255))); }
+    { x = (((uint64_t)((y)[7] & 255)) << 56) | (((uint64_t)((y)[6] & 255)) << 48) | \
+          (((uint64_t)((y)[5] & 255)) << 40) | (((uint64_t)((y)[4] & 255)) << 32) | \
+          (((uint64_t)((y)[3] & 255)) << 24) | (((uint64_t)((y)[2] & 255)) << 16) | \
+          (((uint64_t)((y)[1] & 255)) << 8) | (((uint64_t)((y)[0] & 255))); }
 
  #else /* 64-bit words then  */
 
@@ -13743,7 +13818,7 @@ typedef unsigned long        ulong32;
     { XMEMCPY(&(x), y, 4); x &= 0xFFFFFFFF; }
 
   #define STORE64L(x, y) \
-    { ulong64 __t = (x); XMEMCPY(y, &__t, 8); }
+    { uint64_t __t = (x); XMEMCPY(y, &__t, 8); }
 
   #define LOAD64L(x, y) \
     { XMEMCPY(&(x), y, 8); }
@@ -13768,10 +13843,10 @@ typedef unsigned long        ulong32;
       (y)[1] = (unsigned char)(((x) >> 8) & 255); (y)[0] = (unsigned char)((x) & 255); }
 
  #define LOAD64L(x, y)                                                            \
-    { x = (((ulong64)((y)[7] & 255)) << 56) | (((ulong64)((y)[6] & 255)) << 48) | \
-          (((ulong64)((y)[5] & 255)) << 40) | (((ulong64)((y)[4] & 255)) << 32) | \
-          (((ulong64)((y)[3] & 255)) << 24) | (((ulong64)((y)[2] & 255)) << 16) | \
-          (((ulong64)((y)[1] & 255)) << 8) | (((ulong64)((y)[0] & 255))); }
+    { x = (((uint64_t)((y)[7] & 255)) << 56) | (((uint64_t)((y)[6] & 255)) << 48) | \
+          (((uint64_t)((y)[5] & 255)) << 40) | (((uint64_t)((y)[4] & 255)) << 32) | \
+          (((uint64_t)((y)[3] & 255)) << 24) | (((uint64_t)((y)[2] & 255)) << 16) | \
+          (((uint64_t)((y)[1] & 255)) << 8) | (((uint64_t)((y)[0] & 255))); }
 
  #ifdef ENDIAN_32BITWORD
 
@@ -13788,10 +13863,10 @@ typedef unsigned long        ulong32;
       (y)[6] = (unsigned char)(((x) >> 8) & 255);  (y)[7] = (unsigned char)((x) & 255); }
 
   #define LOAD64H(x, y)                                                           \
-    { x = (((ulong64)((y)[0] & 255)) << 56) | (((ulong64)((y)[1] & 255)) << 48) | \
-          (((ulong64)((y)[2] & 255)) << 40) | (((ulong64)((y)[3] & 255)) << 32) | \
-          (((ulong64)((y)[4] & 255)) << 24) | (((ulong64)((y)[5] & 255)) << 16) | \
-          (((ulong64)((y)[6] & 255)) << 8) | (((ulong64)((y)[7] & 255))); }
+    { x = (((uint64_t)((y)[0] & 255)) << 56) | (((uint64_t)((y)[1] & 255)) << 48) | \
+          (((uint64_t)((y)[2] & 255)) << 40) | (((uint64_t)((y)[3] & 255)) << 32) | \
+          (((uint64_t)((y)[4] & 255)) << 24) | (((uint64_t)((y)[5] & 255)) << 16) | \
+          (((uint64_t)((y)[6] & 255)) << 8) | (((uint64_t)((y)[7] & 255))); }
 
  #else /* 64-bit words then  */
 
@@ -13802,7 +13877,7 @@ typedef unsigned long        ulong32;
     { XMEMCPY(&(x), y, 4); x &= 0xFFFFFFFF; }
 
   #define STORE64H(x, y) \
-    { ulong64 __t = (x); XMEMCPY(y, &__t, 8); }
+    { uint64_t __t = (x); XMEMCPY(y, &__t, 8); }
 
   #define LOAD64H(x, y) \
     { XMEMCPY(&(x), y, 8); }
@@ -13954,28 +14029,28 @@ static inline unsigned long ROR64c(unsigned long word, const int i) {
 #else /* Not x86_64  */
 
  #define ROL64(x, y)                 \
-    ((((x) << ((ulong64)(y) & 63)) | \
-      (((x) & CONST64(0xFFFFFFFFFFFFFFFF)) >> ((ulong64)64 - ((y) & 63)))) & CONST64(0xFFFFFFFFFFFFFFFF))
+    ((((x) << ((uint64_t)(y) & 63)) | \
+      (((x) & CONST64(0xFFFFFFFFFFFFFFFF)) >> ((uint64_t)64 - ((y) & 63)))) & CONST64(0xFFFFFFFFFFFFFFFF))
 
  #define ROR64(x, y)                                                          \
-    (((((x) & CONST64(0xFFFFFFFFFFFFFFFF)) >> ((ulong64)(y) & CONST64(63))) | \
-      ((x) << ((ulong64)(64 - ((y) & CONST64(63)))))) & CONST64(0xFFFFFFFFFFFFFFFF))
+    (((((x) & CONST64(0xFFFFFFFFFFFFFFFF)) >> ((uint64_t)(y) & CONST64(63))) | \
+      ((x) << ((uint64_t)(64 - ((y) & CONST64(63)))))) & CONST64(0xFFFFFFFFFFFFFFFF))
 
  #define ROL64c(x, y)                \
-    ((((x) << ((ulong64)(y) & 63)) | \
-      (((x) & CONST64(0xFFFFFFFFFFFFFFFF)) >> ((ulong64)64 - ((y) & 63)))) & CONST64(0xFFFFFFFFFFFFFFFF))
+    ((((x) << ((uint64_t)(y) & 63)) | \
+      (((x) & CONST64(0xFFFFFFFFFFFFFFFF)) >> ((uint64_t)64 - ((y) & 63)))) & CONST64(0xFFFFFFFFFFFFFFFF))
 
  #define ROR64c(x, y)                                                         \
-    (((((x) & CONST64(0xFFFFFFFFFFFFFFFF)) >> ((ulong64)(y) & CONST64(63))) | \
-      ((x) << ((ulong64)(64 - ((y) & CONST64(63)))))) & CONST64(0xFFFFFFFFFFFFFFFF))
+    (((((x) & CONST64(0xFFFFFFFFFFFFFFFF)) >> ((uint64_t)(y) & CONST64(63))) | \
+      ((x) << ((uint64_t)(64 - ((y) & CONST64(63)))))) & CONST64(0xFFFFFFFFFFFFFFFF))
 #endif
 
-#ifndef MAX
- #define MAX(x, y)    (((x) > (y)) ? (x) : (y))
+#ifndef TOMCRYPT_MAX
+ #define TOMCRYPT_MAX(x, y)    (((x) > (y)) ? (x) : (y))
 #endif
 
-#ifndef MIN
- #define MIN(x, y)    (((x) < (y)) ? (x) : (y))
+#ifndef TOMCRYPT_MIN
+ #define TOMCRYPT_MIN(x, y)    (((x) < (y)) ? (x) : (y))
 #endif
 
 /* extract a byte portably */
@@ -13987,7 +14062,7 @@ static inline unsigned long ROR64c(unsigned long word, const int i) {
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_macros.h,v $ */
 /* $Revision: 1.15 $ */
-/* $Date: 2006/11/29 23:43:57 $ */ 
+/* $Date: 2006/11/29 23:43:57 $ */
 
 /* ---- SYMMETRIC KEY STUFF -----
  *
@@ -14112,8 +14187,8 @@ struct skipjack_key {
 
 #ifdef LTC_KHAZAD
 struct khazad_key {
-    ulong64 roundKeyEnc[8 + 1];
-    ulong64 roundKeyDec[8 + 1];
+    uint64_t roundKeyEnc[8 + 1];
+    uint64_t roundKeyDec[8 + 1];
 };
 #endif
 
@@ -14906,13 +14981,13 @@ LTC_MUTEX_PROTO(ltc_cipher_mutex)
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_cipher.h,v $ */
 /* $Revision: 1.54 $ */
-/* $Date: 2007/05/12 14:37:41 $ */ 
+/* $Date: 2007/05/12 14:37:41 $ */
 
 #define LTC_SHA1
 /* ---- HASH FUNCTIONS ---- */
 #ifdef LTC_SHA512
 struct sha512_state {
-    ulong64       length, state[8];
+    uint64_t       length, state[8];
     unsigned long curlen;
     unsigned char buf[128];
 };
@@ -14920,7 +14995,7 @@ struct sha512_state {
 
 #ifdef LTC_SHA256
 struct sha256_state {
-    ulong64       length;
+    uint64_t       length;
     ulong32       state[8], curlen;
     unsigned char buf[64];
 };
@@ -14928,7 +15003,7 @@ struct sha256_state {
 
 #ifdef LTC_SHA1
 struct sha1_state {
-    ulong64       length;
+    uint64_t       length;
     ulong32       state[5], curlen;
     unsigned char buf[64];
 };
@@ -14936,7 +15011,7 @@ struct sha1_state {
 
 #ifdef LTC_MD5
 struct md5_state {
-    ulong64       length;
+    uint64_t       length;
     ulong32       state[4], curlen;
     unsigned char buf[64];
 };
@@ -14944,7 +15019,7 @@ struct md5_state {
 
 #ifdef LTC_MD4
 struct md4_state {
-    ulong64       length;
+    uint64_t       length;
     ulong32       state[4], curlen;
     unsigned char buf[64];
 };
@@ -14952,7 +15027,7 @@ struct md4_state {
 
 #ifdef LTC_TIGER
 struct tiger_state {
-    ulong64       state[3], length;
+    uint64_t       state[3], length;
     unsigned long curlen;
     unsigned char buf[64];
 };
@@ -14967,7 +15042,7 @@ struct md2_state {
 
 #ifdef LTC_RIPEMD128
 struct rmd128_state {
-    ulong64       length;
+    uint64_t       length;
     unsigned char buf[64];
     ulong32       curlen, state[4];
 };
@@ -14975,7 +15050,7 @@ struct rmd128_state {
 
 #ifdef LTC_RIPEMD160
 struct rmd160_state {
-    ulong64       length;
+    uint64_t       length;
     unsigned char buf[64];
     ulong32       curlen, state[5];
 };
@@ -14983,7 +15058,7 @@ struct rmd160_state {
 
 #ifdef LTC_RIPEMD256
 struct rmd256_state {
-    ulong64       length;
+    uint64_t       length;
     unsigned char buf[64];
     ulong32       curlen, state[8];
 };
@@ -14991,7 +15066,7 @@ struct rmd256_state {
 
 #ifdef LTC_RIPEMD320
 struct rmd320_state {
-    ulong64       length;
+    uint64_t       length;
     unsigned char buf[64];
     ulong32       curlen, state[10];
 };
@@ -14999,7 +15074,7 @@ struct rmd320_state {
 
 #ifdef LTC_WHIRLPOOL
 struct whirlpool_state {
-    ulong64       length, state[8];
+    uint64_t       length, state[8];
     unsigned char buf[64];
     ulong32       curlen;
 };
@@ -15007,7 +15082,7 @@ struct whirlpool_state {
 
 #ifdef LTC_CHC_HASH
 struct chc_state {
-    ulong64       length;
+    uint64_t       length;
     unsigned char state[MAXBLOCKSIZE], buf[MAXBLOCKSIZE];
     ulong32       curlen;
 };
@@ -15287,7 +15362,7 @@ int hash_file(int hash, const char *fname, unsigned char *out, unsigned long *ou
                 in    += block_size;                                                \
                 inlen -= block_size;                                                \
             } else {                                                                \
-                n = MIN(inlen, (block_size - md->state_var.curlen));                \
+                n = TOMCRYPT_MIN(inlen, (block_size - md->state_var.curlen));                \
                 memcpy(md->state_var.buf + md->state_var.curlen, in, (size_t)n);    \
                 md->state_var.curlen += n;                                          \
                 in    += n;                                                         \
@@ -15306,7 +15381,7 @@ int hash_file(int hash, const char *fname, unsigned char *out, unsigned long *ou
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_hash.h,v $ */
 /* $Revision: 1.22 $ */
-/* $Date: 2007/05/12 14:32:35 $ */ 
+/* $Date: 2007/05/12 14:32:35 $ */
 
 #ifdef LTC_HMAC
 typedef struct Hmac_state {
@@ -15551,7 +15626,7 @@ typedef struct {
                   mode,              /* mode the GCM code is in */
                   buflen;            /* length of data in buf */
 
-    ulong64       totlen,            /* 64-bit counter used for IV and AAD */
+    uint64_t       totlen,            /* 64-bit counter used for IV and AAD */
                   pttotlen;          /* 64-bit counter for the PT */
 
  #ifdef LTC_GCM_TABLES
@@ -15683,7 +15758,7 @@ int f9_test(void);
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_mac.h,v $ */
 /* $Revision: 1.23 $ */
-/* $Date: 2007/05/12 14:37:41 $ */ 
+/* $Date: 2007/05/12 14:37:41 $ */
 
 /* ---- PRNG Stuff ---- */
 #ifdef LTC_YARROW
@@ -15715,7 +15790,7 @@ struct fortuna_prng {
                   pool0_len,  /* length of 0'th pool */
                   wd;
 
-    ulong64       reset_cnt;  /* number of times we have reset */
+    uint64_t       reset_cnt;  /* number of times we have reset */
     LTC_MUTEX_TYPE(prng_lock)
 };
 #endif
@@ -15896,7 +15971,7 @@ int rng_make_prng(int bits, int wprng, prng_state *prng, void (*callback)(void))
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_prng.h,v $ */
 /* $Revision: 1.9 $ */
-/* $Date: 2007/05/12 14:32:35 $ */ 
+/* $Date: 2007/05/12 14:32:35 $ */
 
 /* ---- NUMBER THEORY ---- */
 
@@ -15915,7 +15990,7 @@ enum public_key_type {
    /* Refers to the public key */
    PK_PUBLIC      = 0x0000,
    /* Refers to the private key */
-   PK_PRIVATE     = 0x0001,
+   PK_PRIVATE     = 0x0001
 };
 
 int rand_prime(void *N, long len, prng_state *prng, int wprng);
@@ -16069,22 +16144,22 @@ typedef struct {
     int  size;
 
     /** name of curve */
-    char *name;
+    const char *name;
 
     /** The prime that defines the field the curve is in (encoded in hex) */
-    char *prime;
+    const char *prime;
 
     /** The fields B param (hex) */
-    char *B;
+    const char *B;
 
     /** The order of the curve (hex) */
-    char *order;
+    const char *order;
 
     /** The x co-ordinate of the base point on the curve (hex) */
-    char *Gx;
+    const char *Gx;
 
     /** The y co-ordinate of the base point on the curve (hex) */
-    char *Gy;
+    const char *Gy;
 } ltc_ecc_set_type;
 
 /** A point on a ECC curve, stored in Jacbobian format such that (x,y,z) => (x/z^2, y/z^3, 1) when interpretted as affine */
@@ -16134,7 +16209,7 @@ int  ecc_import_ex(const unsigned char *in, unsigned long inlen, ecc_key *key, c
 
 int ecc_ansi_x963_export(ecc_key *key, unsigned char *out, unsigned long *outlen);
 int ecc_ansi_x963_import(const unsigned char *in, unsigned long inlen, ecc_key *key);
-int ecc_ansi_x963_import_ex(const unsigned char *in, unsigned long inlen, ecc_key *key, ltc_ecc_set_type *dp);
+int ecc_ansi_x963_import_ex(const unsigned char *in, unsigned long inlen, ecc_key *key, const ltc_ecc_set_type *dp);
 
 int  ecc_shared_secret(ecc_key *private_key, ecc_key *public_key,
                        unsigned char *out, unsigned long *outlen);
@@ -16482,7 +16557,7 @@ int der_length_utctime(ltc_utctime *utctime, unsigned long *outlen);
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_pk.h,v $ */
 /* $Revision: 1.81 $ */
-/* $Date: 2007/05/12 14:32:35 $ */ 
+/* $Date: 2007/05/12 14:32:35 $ */
 
 /** math functions **/
 #define LTC_SOURCE
@@ -16986,7 +17061,7 @@ extern const ltc_math_descriptor gmp_desc;
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_math.h,v $ */
 /* $Revision: 1.44 $ */
-/* $Date: 2007/05/12 14:32:35 $ */ 
+/* $Date: 2007/05/12 14:32:35 $ */
 
 /* ---- LTC_BASE64 Routines ---- */
 #ifdef LTC_BASE64
@@ -17010,7 +17085,7 @@ int crypt_fsa(void *mp, ...);
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_misc.h,v $ */
 /* $Revision: 1.5 $ */
-/* $Date: 2007/05/12 14:32:35 $ */ 
+/* $Date: 2007/05/12 14:32:35 $ */
 
 /* Defines the LTC_ARGCHK macro used within the library */
 /* ARGTYPE is defined in mycrypt_cfg.h */
@@ -17049,7 +17124,7 @@ void crypt_argchk(char *v, char *s, int d);
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_argchk.h,v $ */
 /* $Revision: 1.5 $ */
-/* $Date: 2006/08/27 20:50:21 $ */ 
+/* $Date: 2006/08/27 20:50:21 $ */
 
 /* LTC_PKCS Header Info */
 
@@ -17135,7 +17210,7 @@ int pkcs_5_alg2(const unsigned char *password, unsigned long password_len,
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_pkcs.h,v $ */
 /* $Revision: 1.8 $ */
-/* $Date: 2007/05/12 14:32:35 $ */ 
+/* $Date: 2007/05/12 14:32:35 $ */
 
 #ifdef __cplusplus
 }
@@ -17145,7 +17220,7 @@ int pkcs_5_alg2(const unsigned char *password, unsigned long password_len,
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt.h,v $ */
 /* $Revision: 1.21 $ */
-/* $Date: 2006/12/16 19:34:05 $ */ 
+/* $Date: 2006/12/16 19:34:05 $ */
 
 /* $Source: /cvs/libtom/libtomcrypt/src/misc/crypt/crypt_argchk.c,v $ */
 /* $Revision: 1.5 $ */
@@ -19438,7 +19513,7 @@ int der_decode_sequence_flexi(const unsigned char *in, unsigned long *inlen, ltc
                 l->type = LTC_ASN1_UTF8_STRING;
                 l->size = len;
 
-                if ((l->data = XCALLOC(l->size, sizeof(wchar_t))) == NULL) {
+                if ((l->data = XCALLOC(sizeof(wchar_t), l->size)) == NULL) {
                     err = CRYPT_MEM;
                     goto error;
                 }
@@ -21333,7 +21408,7 @@ static int qsort_helper(const void *a, const void *b) {
     unsigned long x;
 
     /* compare min length */
-    r = XMEMCMP(A->start, B->start, MIN(A->size, B->size));
+    r = XMEMCMP(A->start, B->start, TOMCRYPT_MIN(A->size, B->size));
 
     if ((r == 0) && (A->size != B->size)) {
         if (A->size > B->size) {
@@ -23119,7 +23194,7 @@ int ecc_ansi_x963_import(const unsigned char *in, unsigned long inlen, ecc_key *
     return ecc_ansi_x963_import_ex(in, inlen, key, NULL);
 }
 
-int ecc_ansi_x963_import_ex(const unsigned char *in, unsigned long inlen, ecc_key *key, ltc_ecc_set_type *dp) {
+int ecc_ansi_x963_import_ex(const unsigned char *in, unsigned long inlen, ecc_key *key, const ltc_ecc_set_type *dp) {
     int x, err;
 
     LTC_ARGCHK(in != NULL);
@@ -23294,7 +23369,7 @@ int ecc_decrypt_key(const unsigned char *in, unsigned long inlen,
     }
     ecc_free(&pubkey);
 
-    y = MIN(ECC_BUF_SIZE, MAXBLOCKSIZE);
+    y = TOMCRYPT_MIN(ECC_BUF_SIZE, MAXBLOCKSIZE);
     if ((err = hash_memory(hash, ecc_shared, x, ecc_shared, &y)) != CRYPT_OK) {
         goto LBL_ERR;
     }
@@ -25158,7 +25233,7 @@ int ltc_ecc_mul2add(ecc_point *A, void *kA,
     /* get sizes */
     lenA = mp_unsigned_bin_size(kA);
     lenB = mp_unsigned_bin_size(kB);
-    len  = MAX(lenA, lenB);
+    len  = TOMCRYPT_MAX(lenA, lenB);
 
     /* sanity check */
     if ((lenA > ECC_BUF_SIZE) || (lenB > ECC_BUF_SIZE)) {
@@ -27616,7 +27691,7 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
                       const unsigned char *sig, unsigned long siglen,
                       unsigned long saltlen, int hash_idx,
                       unsigned long modulus_bitlen, int *res) {
-    unsigned char *DB, *mask, *salt, *hash;
+    unsigned char *DB, *mask, *salt, *hash, *saltpos;
     unsigned long x, y, hLen, modulus_len;
     int           err;
     hash_state    md;
@@ -27699,17 +27774,26 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
     /* DB = PS || 0x01 || salt, PS == modulus_len - saltlen - hLen - 2 zero bytes */
 
     /* check for zeroes and 0x01 */
-    for (x = 0; x < modulus_len - saltlen - hLen - 2; x++) {
-        if (DB[x] != 0x00) {
+    saltpos = DB + x;
+    if (saltlen == 0) {
+        unsigned long try;
+        for (try = modulus_len - hLen - 2; try > 0; try--) {
+            if (DB[try] == 1) { saltpos = DB + try + 1; saltlen = modulus_len - hLen - 2 - try; break; }
+            if (DB[try] != 0) { err = CRYPT_INVALID_PACKET; goto LBL_ERR; }
+        }
+        if (try == 0) { err = CRYPT_INVALID_PACKET; goto LBL_ERR; }
+    } else {
+        for (x = 0; x < modulus_len - saltlen - hLen - 2; x++) {
+            if (DB[x] != 0x00) {
+                err = CRYPT_INVALID_PACKET;
+                goto LBL_ERR;
+            }
+        }
+        if (DB[x++] != 0x01) {
             err = CRYPT_INVALID_PACKET;
             goto LBL_ERR;
         }
-    }
-
-    /* check for the 0x01 */
-    if (DB[x++] != 0x01) {
-        err = CRYPT_INVALID_PACKET;
-        goto LBL_ERR;
+        saltpos = DB + x;
     }
 
     /* M = (eight) 0x00 || msghash || salt, mask = H(M) */
@@ -27723,7 +27807,7 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
     if ((err = hash_descriptor[hash_idx].process(&md, msghash, msghashlen)) != CRYPT_OK) {
         goto LBL_ERR;
     }
-    if ((err = hash_descriptor[hash_idx].process(&md, DB + x, saltlen)) != CRYPT_OK) {
+    if ((err = hash_descriptor[hash_idx].process(&md, saltpos, saltlen)) != CRYPT_OK) {
         goto LBL_ERR;
     }
     if ((err = hash_descriptor[hash_idx].done(&md, mask)) != CRYPT_OK) {
@@ -28332,7 +28416,9 @@ static unsigned long rng_ansic(unsigned char *buf, unsigned long len,
 
 /* Try the Microsoft CSP */
 #if defined(WIN32) || defined(WINCE)
+ #ifndef _WIN32_WINNT
  #define _WIN32_WINNT    0x0400
+ #endif
  #ifdef WINCE
   #define UNDER_CE
   #define ARM
@@ -28373,6 +28459,12 @@ unsigned long rng_get_bytes(unsigned char *out, unsigned long outlen,
 
     LTC_ARGCHK(out != NULL);
 
+#if defined(macintosh) && defined(MP_FALLBACK_GEN_RANDOM)
+    (void)callback;
+    for (x = 0; x < outlen; ++x)
+        out[x] = (unsigned char)MP_FALLBACK_GEN_RANDOM();
+    return outlen;
+#else
 #if defined(LTC_DEVRANDOM)
     x = rng_nix(out, outlen, callback);
     if (x != 0) {
@@ -28392,6 +28484,7 @@ unsigned long rng_get_bytes(unsigned char *out, unsigned long outlen,
     }
 #endif
     return 0;
+#endif
 }
 
 /* $Source: /cvs/libtom/libtomcrypt/src/prngs/rng_get_bytes.c,v $ */
@@ -30030,10 +30123,10 @@ int  sha224_test(void)
 
 /**
   @file sha256.c
-  LTC_SHA256 by Tom St Denis 
+  LTC_SHA256 by Tom St Denis
 */
 
-#ifdef LTC_SHA256 
+#ifdef LTC_SHA256
 
 const struct ltc_hash_descriptor sha256_desc =
 {
@@ -30045,7 +30138,7 @@ const struct ltc_hash_descriptor sha256_desc =
     /* OID */
    { 2, 16, 840, 1, 101, 3, 4, 2, 1,  },
    9,
-    
+
     &sha256_init,
     &sha256_process,
     &sha256_done,
@@ -30074,7 +30167,7 @@ static const ulong32 K[64] = {
 
 /* Various logical functions */
 #define Ch(x,y,z)       (z ^ (x & (y ^ z)))
-#define Maj(x,y,z)      (((x | y) & z) | (x & y)) 
+#define Maj(x,y,z)      (((x | y) & z) | (x & y))
 #define S(x, n)         RORc((x),(n))
 #define R(x, n)         (((x)&0xFFFFFFFFUL)>>(n))
 #define Sigma0(x)       (S(x, 2) ^ S(x, 13) ^ S(x, 22))
@@ -30108,10 +30201,10 @@ static int  sha256_compress(hash_state * md, unsigned char *buf)
     /* fill W[16..63] */
     for (i = 16; i < 64; i++) {
         W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16];
-    }        
+    }
 
     /* Compress */
-#ifdef LTC_SMALL_CODE   
+#ifdef LTC_SMALL_CODE
 #define RND(a,b,c,d,e,f,g,h,i)                         \
      t0 = h + Sigma1(e) + Ch(e, f, g) + K[i] + W[i];   \
      t1 = Sigma0(a) + Maj(a, b, c);                    \
@@ -30120,10 +30213,10 @@ static int  sha256_compress(hash_state * md, unsigned char *buf)
 
      for (i = 0; i < 64; ++i) {
          RND(S[0],S[1],S[2],S[3],S[4],S[5],S[6],S[7],i);
-         t = S[7]; S[7] = S[6]; S[6] = S[5]; S[5] = S[4]; 
+         t = S[7]; S[7] = S[6]; S[6] = S[5]; S[5] = S[4];
          S[4] = S[3]; S[3] = S[2]; S[2] = S[1]; S[1] = S[0]; S[0] = t;
-     }  
-#else 
+     }
+#else
 #define RND(a,b,c,d,e,f,g,h,i,ki)                    \
      t0 = h + Sigma1(e) + Ch(e, f, g) + ki + W[i];   \
      t1 = Sigma0(a) + Maj(a, b, c);                  \
@@ -30195,9 +30288,9 @@ static int  sha256_compress(hash_state * md, unsigned char *buf)
     RND(S[2],S[3],S[4],S[5],S[6],S[7],S[0],S[1],62,0xbef9a3f7);
     RND(S[1],S[2],S[3],S[4],S[5],S[6],S[7],S[0],63,0xc67178f2);
 
-#undef RND     
-    
-#endif     
+#undef RND
+
+#endif
 
     /* feedback */
     for (i = 0; i < 8; i++) {
@@ -30305,12 +30398,12 @@ int sha256_done(hash_state * md, unsigned char *out)
 /**
   Self-test the hash
   @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
-*/  
+*/
 int  sha256_test(void)
 {
  #ifndef LTC_TEST
     return CRYPT_NOP;
- #else    
+ #else
   static const struct {
       char *msg;
       unsigned char hash[32];
@@ -30322,9 +30415,9 @@ int  sha256_test(void)
         0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad }
     },
     { "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
-      { 0x24, 0x8d, 0x6a, 0x61, 0xd2, 0x06, 0x38, 0xb8, 
+      { 0x24, 0x8d, 0x6a, 0x61, 0xd2, 0x06, 0x38, 0xb8,
         0xe5, 0xc0, 0x26, 0x93, 0x0c, 0x3e, 0x60, 0x39,
-        0xa3, 0x3c, 0xe4, 0x59, 0x64, 0xff, 0x21, 0x67, 
+        0xa3, 0x3c, 0xe4, 0x59, 0x64, 0xff, 0x21, 0x67,
         0xf6, 0xec, 0xed, 0xd4, 0x19, 0xdb, 0x06, 0xc1 }
     },
   };
@@ -30506,7 +30599,7 @@ int  sha384_test(void)
 
 /**
    @param sha512.c
-   LTC_SHA512 by Tom St Denis 
+   LTC_SHA512 by Tom St Denis
 */
 
 #ifdef LTC_SHA512
@@ -30530,46 +30623,46 @@ const struct ltc_hash_descriptor sha512_desc =
 };
 
 /* the K array */
-static const ulong64 K[80] = {
-CONST64(0x428a2f98d728ae22), CONST64(0x7137449123ef65cd), 
+static const uint64_t K[80] = {
+CONST64(0x428a2f98d728ae22), CONST64(0x7137449123ef65cd),
 CONST64(0xb5c0fbcfec4d3b2f), CONST64(0xe9b5dba58189dbbc),
-CONST64(0x3956c25bf348b538), CONST64(0x59f111f1b605d019), 
+CONST64(0x3956c25bf348b538), CONST64(0x59f111f1b605d019),
 CONST64(0x923f82a4af194f9b), CONST64(0xab1c5ed5da6d8118),
-CONST64(0xd807aa98a3030242), CONST64(0x12835b0145706fbe), 
+CONST64(0xd807aa98a3030242), CONST64(0x12835b0145706fbe),
 CONST64(0x243185be4ee4b28c), CONST64(0x550c7dc3d5ffb4e2),
-CONST64(0x72be5d74f27b896f), CONST64(0x80deb1fe3b1696b1), 
+CONST64(0x72be5d74f27b896f), CONST64(0x80deb1fe3b1696b1),
 CONST64(0x9bdc06a725c71235), CONST64(0xc19bf174cf692694),
-CONST64(0xe49b69c19ef14ad2), CONST64(0xefbe4786384f25e3), 
+CONST64(0xe49b69c19ef14ad2), CONST64(0xefbe4786384f25e3),
 CONST64(0x0fc19dc68b8cd5b5), CONST64(0x240ca1cc77ac9c65),
-CONST64(0x2de92c6f592b0275), CONST64(0x4a7484aa6ea6e483), 
+CONST64(0x2de92c6f592b0275), CONST64(0x4a7484aa6ea6e483),
 CONST64(0x5cb0a9dcbd41fbd4), CONST64(0x76f988da831153b5),
-CONST64(0x983e5152ee66dfab), CONST64(0xa831c66d2db43210), 
+CONST64(0x983e5152ee66dfab), CONST64(0xa831c66d2db43210),
 CONST64(0xb00327c898fb213f), CONST64(0xbf597fc7beef0ee4),
-CONST64(0xc6e00bf33da88fc2), CONST64(0xd5a79147930aa725), 
+CONST64(0xc6e00bf33da88fc2), CONST64(0xd5a79147930aa725),
 CONST64(0x06ca6351e003826f), CONST64(0x142929670a0e6e70),
-CONST64(0x27b70a8546d22ffc), CONST64(0x2e1b21385c26c926), 
+CONST64(0x27b70a8546d22ffc), CONST64(0x2e1b21385c26c926),
 CONST64(0x4d2c6dfc5ac42aed), CONST64(0x53380d139d95b3df),
-CONST64(0x650a73548baf63de), CONST64(0x766a0abb3c77b2a8), 
+CONST64(0x650a73548baf63de), CONST64(0x766a0abb3c77b2a8),
 CONST64(0x81c2c92e47edaee6), CONST64(0x92722c851482353b),
 CONST64(0xa2bfe8a14cf10364), CONST64(0xa81a664bbc423001),
 CONST64(0xc24b8b70d0f89791), CONST64(0xc76c51a30654be30),
-CONST64(0xd192e819d6ef5218), CONST64(0xd69906245565a910), 
+CONST64(0xd192e819d6ef5218), CONST64(0xd69906245565a910),
 CONST64(0xf40e35855771202a), CONST64(0x106aa07032bbd1b8),
-CONST64(0x19a4c116b8d2d0c8), CONST64(0x1e376c085141ab53), 
+CONST64(0x19a4c116b8d2d0c8), CONST64(0x1e376c085141ab53),
 CONST64(0x2748774cdf8eeb99), CONST64(0x34b0bcb5e19b48a8),
-CONST64(0x391c0cb3c5c95a63), CONST64(0x4ed8aa4ae3418acb), 
+CONST64(0x391c0cb3c5c95a63), CONST64(0x4ed8aa4ae3418acb),
 CONST64(0x5b9cca4f7763e373), CONST64(0x682e6ff3d6b2b8a3),
-CONST64(0x748f82ee5defb2fc), CONST64(0x78a5636f43172f60), 
+CONST64(0x748f82ee5defb2fc), CONST64(0x78a5636f43172f60),
 CONST64(0x84c87814a1f0ab72), CONST64(0x8cc702081a6439ec),
-CONST64(0x90befffa23631e28), CONST64(0xa4506cebde82bde9), 
+CONST64(0x90befffa23631e28), CONST64(0xa4506cebde82bde9),
 CONST64(0xbef9a3f7b2c67915), CONST64(0xc67178f2e372532b),
-CONST64(0xca273eceea26619c), CONST64(0xd186b8c721c0c207), 
+CONST64(0xca273eceea26619c), CONST64(0xd186b8c721c0c207),
 CONST64(0xeada7dd6cde0eb1e), CONST64(0xf57d4f7fee6ed178),
-CONST64(0x06f067aa72176fba), CONST64(0x0a637dc5a2c898a6), 
+CONST64(0x06f067aa72176fba), CONST64(0x0a637dc5a2c898a6),
 CONST64(0x113f9804bef90dae), CONST64(0x1b710b35131c471b),
-CONST64(0x28db77f523047d84), CONST64(0x32caab7b40c72493), 
+CONST64(0x28db77f523047d84), CONST64(0x32caab7b40c72493),
 CONST64(0x3c9ebe0a15c9bebc), CONST64(0x431d67c49c100d4c),
-CONST64(0x4cc5d4becb3e42b6), CONST64(0x597f299cfc657e2a), 
+CONST64(0x4cc5d4becb3e42b6), CONST64(0x597f299cfc657e2a),
 CONST64(0x5fcb6fab3ad6faec), CONST64(0x6c44198c4a475817)
 };
 
@@ -30582,9 +30675,9 @@ CONST64(0x5fcb6fab3ad6faec), CONST64(0x6c44198c4a475817)
 #undef Gamma1
 
 #define Ch(x,y,z)       (z ^ (x & (y ^ z)))
-#define Maj(x,y,z)      (((x | y) & z) | (x & y)) 
+#define Maj(x,y,z)      (((x | y) & z) | (x & y))
 #define S(x, n)         ROR64c(x, n)
-#define R(x, n)         (((x)&CONST64(0xFFFFFFFFFFFFFFFF))>>((ulong64)n))
+#define R(x, n)         (((x)&CONST64(0xFFFFFFFFFFFFFFFF))>>((uint64_t)n))
 #define Sigma0(x)       (S(x, 28) ^ S(x, 34) ^ S(x, 39))
 #define Sigma1(x)       (S(x, 14) ^ S(x, 18) ^ S(x, 41))
 #define Gamma0(x)       (S(x, 1) ^ S(x, 8) ^ R(x, 7))
@@ -30597,7 +30690,7 @@ static int _sha512_compress(hash_state * md, unsigned char *buf)
 static int  sha512_compress(hash_state * md, unsigned char *buf)
 #endif
 {
-    ulong64 S[8], W[80], t0, t1;
+    uint64_t S[8], W[80], t0, t1;
     int i;
 
     /* copy state into S */
@@ -30613,7 +30706,7 @@ static int  sha512_compress(hash_state * md, unsigned char *buf)
     /* fill W[16..79] */
     for (i = 16; i < 80; i++) {
         W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16];
-    }        
+    }
 
     /* Compress */
 #ifdef LTC_SMALL_CODE
@@ -30646,7 +30739,7 @@ static int  sha512_compress(hash_state * md, unsigned char *buf)
          RND(S[2],S[3],S[4],S[5],S[6],S[7],S[0],S[1],i+6);
          RND(S[1],S[2],S[3],S[4],S[5],S[6],S[7],S[0],i+7);
      }
-#endif     
+#endif
 
 
     /* feedback */
@@ -30663,7 +30756,7 @@ static int sha512_compress(hash_state * md, unsigned char *buf)
 {
     int err;
     err = _sha512_compress(md, buf);
-    burn_stack(sizeof(ulong64) * 90 + sizeof(int));
+    burn_stack(sizeof(uint64_t) * 90 + sizeof(int));
     return err;
 }
 #endif
@@ -30733,7 +30826,7 @@ int sha512_done(hash_state * md, unsigned char *out)
         md->sha512.curlen = 0;
     }
 
-    /* pad upto 120 bytes of zeroes 
+    /* pad upto 120 bytes of zeroes
      * note: that from 112 to 120 is the 64 MSB of the length.  We assume that you won't hash
      * > 2^64 bits of data... :-)
      */
@@ -30758,12 +30851,12 @@ int sha512_done(hash_state * md, unsigned char *out)
 /**
   Self-test the hash
   @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
-*/  
+*/
 int  sha512_test(void)
 {
  #ifndef LTC_TEST
     return CRYPT_NOP;
- #else    
+ #else
   static const struct {
       char *msg;
       unsigned char hash[64];
@@ -32845,7 +32938,7 @@ int ECB_TEST(void)
 */
 void ECB_DONE(symmetric_key *skey)
 {
-  //LTC_UNUSED_PARAM(skey);
+  /* LTC_UNUSED_PARAM(skey); */
 }
 
 
@@ -33014,7 +33107,7 @@ int cbc_done(symmetric_CBC *cbc)
    return CRYPT_OK;
 }
 
-   
+
 
 #endif
 
@@ -33209,7 +33302,7 @@ int cbc_setiv(const unsigned char *IV, unsigned long len, symmetric_CBC *cbc)
    return CRYPT_OK;
 }
 
-#endif 
+#endif
 
 
 /* $Source$ */
@@ -33240,17 +33333,17 @@ int cbc_setiv(const unsigned char *IV, unsigned long len, symmetric_CBC *cbc)
    Initialize a CBC context
    @param cipher      The index of the cipher desired
    @param IV          The initial vector
-   @param key         The secret key 
+   @param key         The secret key
    @param keylen      The length of the secret key (octets)
    @param num_rounds  Number of rounds in the cipher desired (0 for default)
    @param cbc         The CBC state to initialize
    @return CRYPT_OK if successful
 */
-int cbc_start(int cipher, const unsigned char *IV, const unsigned char *key, 
+int cbc_start(int cipher, const unsigned char *IV, const unsigned char *key,
               int keylen, int num_rounds, symmetric_CBC *cbc)
 {
    int x, err;
- 
+
    LTC_ARGCHK(IV != NULL);
    LTC_ARGCHK(key != NULL);
    LTC_ARGCHK(cbc != NULL);
@@ -33307,7 +33400,7 @@ int cbc_start(int cipher, const unsigned char *IV, const unsigned char *key,
   @param IVlen  The length of the IV
   @return CRYPT_OK on success
  */
-int gcm_add_iv(gcm_state *gcm, 
+int gcm_add_iv(gcm_state *gcm,
                const unsigned char *IV,     unsigned long IVlen)
 {
    unsigned long x, y;
@@ -33322,7 +33415,7 @@ int gcm_add_iv(gcm_state *gcm,
    if (gcm->mode != LTC_GCM_MODE_IV) {
       return CRYPT_INVALID_ARG;
    }
- 
+
    if (gcm->buflen >= 16 || gcm->buflen < 0) {
       return CRYPT_INVALID_ARG;
    }
@@ -33370,7 +33463,7 @@ int gcm_add_iv(gcm_state *gcm,
 }
 
 #endif
-   
+
 
 /* $Source: /cvs/libtom/libtomcrypt/src/encauth/gcm/gcm_add_iv.c,v $ */
 /* $Revision: 1.9 $ */
@@ -33403,7 +33496,7 @@ int gcm_add_iv(gcm_state *gcm,
   @param taglen  [in/out]  The length of the MAC tag
   @return CRYPT_OK on success
  */
-int gcm_done(gcm_state *gcm, 
+int gcm_done(gcm_state *gcm,
                      unsigned char *tag,    unsigned long *taglen)
 {
    unsigned long x;
@@ -33489,7 +33582,7 @@ int gcm_done(gcm_state *gcm,
   @param keylen  The length of the secret key
   @return CRYPT_OK on success
  */
-int gcm_init(gcm_state *gcm, int cipher, 
+int gcm_init(gcm_state *gcm, int cipher,
              const unsigned char *key,  int keylen)
 {
    int           err;
@@ -33590,9 +33683,9 @@ int gcm_init(gcm_state *gcm, int cipher,
 
 #ifdef LTC_GCM_MODE
 
-/** 
+/**
   Process plaintext/ciphertext through GCM
-  @param gcm       The GCM state 
+  @param gcm       The GCM state
   @param pt        The plaintext
   @param ptlen     The plaintext length (ciphertext length is the same)
   @param ct        The ciphertext
@@ -33617,7 +33710,7 @@ int gcm_process(gcm_state *gcm,
    if (gcm->buflen > 16 || gcm->buflen < 0) {
       return CRYPT_INVALID_ARG;
    }
- 
+
    if ((err = cipher_is_valid(gcm->cipher)) != CRYPT_OK) {
       return err;
    }
@@ -33650,7 +33743,7 @@ int gcm_process(gcm_state *gcm,
    x = 0;
 #ifdef LTC_FAST
    if (gcm->buflen == 0) {
-      if (direction == GCM_ENCRYPT) { 
+      if (direction == GCM_ENCRYPT) {
          for (x = 0; x < (ptlen & ~15); x += 16) {
              /* ctr encrypt */
              for (y = 0; y < 16; y += sizeof(LTC_FAST_TYPE)) {
@@ -33688,14 +33781,14 @@ int gcm_process(gcm_state *gcm,
          }
      }
    }
-#endif        
+#endif
 
    /* process text */
    for (; x < ptlen; x++) {
        if (gcm->buflen == 16) {
           gcm->pttotlen += 128;
           gcm_mult_h(gcm, gcm->X);
-          
+
           /* increment counter */
           for (y = 15; y >= 12; y--) {
               if (++gcm->Y[y] & 255) { break; }
@@ -33707,12 +33800,12 @@ int gcm_process(gcm_state *gcm,
        }
 
        if (direction == GCM_ENCRYPT) {
-          b = ct[x] = pt[x] ^ gcm->buf[gcm->buflen]; 
+          b = ct[x] = pt[x] ^ gcm->buf[gcm->buflen];
        } else {
           b = ct[x];
           pt[x] = ct[x] ^ gcm->buf[gcm->buflen];
        }
-       gcm->X[gcm->buflen++] ^= b;          
+       gcm->X[gcm->buflen++] ^= b;
    }
 
    return CRYPT_OK;
@@ -33773,8 +33866,8 @@ void gcm_mult_h(gcm_state *gcm, unsigned char *I)
 #endif /* LTC_FAST */
    }
 #endif /* LTC_GCM_TABLES_SSE2 */
-#else     
-   gcm_gf_mult(gcm->H, I, T); 
+#else
+   gcm_gf_mult(gcm->H, I, T);
 #endif
    XMEMCPY(I, T, 16);
 }
@@ -33804,7 +33897,7 @@ void gcm_mult_h(gcm_state *gcm, unsigned char *I)
 
 #if defined(LTC_GCM_TABLES) || defined(LRW_TABLES) || ((defined(LTC_GCM_MODE) || defined(LTC_GCM_MODE)) && defined(LTC_FAST))
 
-/* this is x*2^128 mod p(x) ... the results are 16 bytes each stored in a packed format.  Since only the 
+/* this is x*2^128 mod p(x) ... the results are 16 bytes each stored in a packed format.  Since only the
  * lower 16 bits are not zero'ed I removed the upper 14 bytes */
 const unsigned char gcm_shift_table[256*2] = {
 0x00, 0x00, 0x01, 0xc2, 0x03, 0x84, 0x02, 0x46, 0x07, 0x08, 0x06, 0xca, 0x04, 0x8c, 0x05, 0x4e,
@@ -33860,13 +33953,13 @@ static void gcm_rightshift(unsigned char *a)
 static const unsigned char mask[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
 static const unsigned char poly[] = { 0x00, 0xE1 };
 
-     
+
 /**
   GCM GF multiplier (internal use only)  bitserial
   @param a   First value
   @param b   Second value
   @param c   Destination for a * b
- */  
+ */
 void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *c)
 {
    unsigned char Z[16], V[16];
@@ -33877,7 +33970,7 @@ void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *
    for (x = 0; x < 128; x++) {
        if (b[x>>3] & mask[x&7]) {
           for (y = 0; y < 16; y++) {
-              Z[y] ^= V[y]; 
+              Z[y] ^= V[y];
           }
        }
        z     = V[15] & 0x01;
@@ -33900,7 +33993,7 @@ void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *
   @param a   First value
   @param b   Second value
   @param c   Destination for a * b
- */  
+ */
 void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *c)
 {
    int i, j, k, u;
@@ -33916,7 +34009,7 @@ void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *
        LOAD32H(B[M(1)][i], a + (i<<2));
        LOAD32L(pB[i],      b + (i<<2));
    }
-#else 
+#else
    for (i = 0; i < 2; i++) {
        LOAD64H(B[M(1)][i], a + (i<<3));
        LOAD64L(pB[i],      b + (i<<3));
@@ -33941,7 +34034,7 @@ void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *
       B[M(9)][i]  = B[M(1)][i] ^ B[M(8)][i];
       B[M(10)][i] = B[M(2)][i] ^ B[M(8)][i];
       B[M(12)][i] = B[M(8)][i] ^ B[M(4)][i];
-   
+
    /*  now all 3 bit values and the only 4 bit value: 7, 11, 13, 14, 15 */
       B[M(7)][i]  = B[M(3)][i] ^ B[M(4)][i];
       B[M(11)][i] = B[M(3)][i] ^ B[M(8)][i];
@@ -33980,7 +34073,7 @@ void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *
    for (i = 0; i < 8; i++) {
        STORE32H(tmp[i], pTmp + (i<<2));
    }
-#else 
+#else
    for (i = 0; i < 4; i++) {
        STORE64H(tmp[i], pTmp + (i<<3));
    }
@@ -34005,7 +34098,7 @@ void gcm_gf_mult(const unsigned char *a, const unsigned char *b, unsigned char *
 /* $Source: /cvs/libtom/libtomcrypt/src/encauth/gcm/gcm_gf_mult.c,v $ */
 /* $Revision: 1.25 $ */
 /* $Date: 2007/05/12 14:32:35 $ */
- 
+
 
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
@@ -34169,7 +34262,7 @@ int gcm_reset(gcm_state *gcm)
    gcm->buflen   = 0;
    gcm->totlen   = 0;
    gcm->pttotlen = 0;
-  
+
    return CRYPT_OK;
 }
 
@@ -34194,7 +34287,7 @@ int gcm_reset(gcm_state *gcm)
 
 /**
   @file md5.c
-  LTC_MD5 hash function by Tom St Denis 
+  LTC_MD5 hash function by Tom St Denis
 */
 
 #ifdef LTC_MD5
@@ -34276,7 +34369,7 @@ static const ulong32 Korder[64] = {
     a = (a + I(b,c,d) + M + t); a = ROLc(a, s) + b;
 
 
-#endif   
+#endif
 
 #ifdef LTC_CLEAN_STACK
 static int _md5_compress(hash_state *md, unsigned char *buf)
@@ -34293,7 +34386,7 @@ static int  md5_compress(hash_state *md, unsigned char *buf)
     for (i = 0; i < 16; i++) {
         LOAD32L(W[i], buf + (4*i));
     }
- 
+
     /* copy state */
     a = md->md5.state[0];
     b = md->md5.state[1];
@@ -34490,37 +34583,37 @@ int md5_done(hash_state * md, unsigned char *out)
 /**
   Self-test the hash
   @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
-*/  
+*/
 int  md5_test(void)
 {
  #ifndef LTC_TEST
     return CRYPT_NOP;
- #else    
+ #else
   static const struct {
       char *msg;
       unsigned char hash[16];
   } tests[] = {
     { "",
-      { 0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04, 
+      { 0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
         0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e } },
     { "a",
-      {0x0c, 0xc1, 0x75, 0xb9, 0xc0, 0xf1, 0xb6, 0xa8, 
+      {0x0c, 0xc1, 0x75, 0xb9, 0xc0, 0xf1, 0xb6, 0xa8,
        0x31, 0xc3, 0x99, 0xe2, 0x69, 0x77, 0x26, 0x61 } },
     { "abc",
-      { 0x90, 0x01, 0x50, 0x98, 0x3c, 0xd2, 0x4f, 0xb0, 
+      { 0x90, 0x01, 0x50, 0x98, 0x3c, 0xd2, 0x4f, 0xb0,
         0xd6, 0x96, 0x3f, 0x7d, 0x28, 0xe1, 0x7f, 0x72 } },
-    { "message digest", 
-      { 0xf9, 0x6b, 0x69, 0x7d, 0x7c, 0xb7, 0x93, 0x8d, 
-        0x52, 0x5a, 0x2f, 0x31, 0xaa, 0xf1, 0x61, 0xd0 } }, 
+    { "message digest",
+      { 0xf9, 0x6b, 0x69, 0x7d, 0x7c, 0xb7, 0x93, 0x8d,
+        0x52, 0x5a, 0x2f, 0x31, 0xaa, 0xf1, 0x61, 0xd0 } },
     { "abcdefghijklmnopqrstuvwxyz",
-      { 0xc3, 0xfc, 0xd3, 0xd7, 0x61, 0x92, 0xe4, 0x00, 
+      { 0xc3, 0xfc, 0xd3, 0xd7, 0x61, 0x92, 0xe4, 0x00,
         0x7d, 0xfb, 0x49, 0x6c, 0xca, 0x67, 0xe1, 0x3b } },
     { "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-      { 0xd1, 0x74, 0xab, 0x98, 0xd2, 0x77, 0xd9, 0xf5, 
+      { 0xd1, 0x74, 0xab, 0x98, 0xd2, 0x77, 0xd9, 0xf5,
         0xa5, 0x61, 0x1c, 0x2c, 0x9f, 0x41, 0x9d, 0x9f } },
     { "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
-      { 0x57, 0xed, 0xf4, 0xa2, 0x2b, 0xe3, 0xc9, 0x55, 
-        0xac, 0x49, 0xda, 0x2e, 0x21, 0x07, 0xb6, 0x7a } }, 
+      { 0x57, 0xed, 0xf4, 0xa2, 0x2b, 0xe3, 0xc9, 0x55,
+        0xac, 0x49, 0xda, 0x2e, 0x21, 0x07, 0xb6, 0x7a } },
     { NULL, { 0 } }
   };
 
@@ -34544,7 +34637,7 @@ int  md5_test(void)
 
 /* $Source$ */
 /* $Revision$ */
-/* $Date$ */ 
+/* $Date$ */
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
@@ -34584,7 +34677,7 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
    if ((err = cipher_is_valid(ctr->cipher)) != CRYPT_OK) {
        return err;
    }
-   
+
    /* is blocklen/padlen valid? */
    if (ctr->blocklen < 1 || ctr->blocklen > (int)sizeof(ctr->ctr) ||
        ctr->padlen   < 0 || ctr->padlen   > (int)sizeof(ctr->pad)) {
@@ -34596,7 +34689,7 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
       return CRYPT_INVALID_ARG;
    }
 #endif
-   
+
    /* handle acceleration only if pad is empty, accelerator is present and length is >= a block size */
    if ((ctr->padlen == ctr->blocklen) && cipher_descriptor[ctr->cipher].accel_ctr_encrypt != NULL && (len >= (unsigned long)ctr->blocklen)) {
       if ((err = cipher_descriptor[ctr->cipher].accel_ctr_encrypt(pt, ct, len/ctr->blocklen, ctr->ctr, ctr->mode, &ctr->key)) != CRYPT_OK) {
@@ -34645,7 +34738,7 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
        ctr->padlen = ctr->blocklen;
        continue;
       }
-#endif    
+#endif
       *ct++ = *pt++ ^ ctr->pad[ctr->padlen++];
       --len;
    }
@@ -34656,7 +34749,7 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
 
 /* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_encrypt.c,v $ */
 /* $Revision: 1.22 $ */
-/* $Date: 2007/02/22 20:26:05 $ */ 
+/* $Date: 2007/02/22 20:26:05 $ */
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
@@ -34692,13 +34785,13 @@ int ctr_done(symmetric_CTR *ctr)
    return CRYPT_OK;
 }
 
-   
+
 
 #endif
 
 /* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_done.c,v $ */
 /* $Revision: 1.7 $ */
-/* $Date: 2006/12/28 01:27:24 $ */ 
+/* $Date: 2006/12/28 01:27:24 $ */
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
@@ -34740,7 +34833,7 @@ int ctr_decrypt(const unsigned char *ct, unsigned char *pt, unsigned long len, s
 
 /* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_decrypt.c,v $ */
 /* $Revision: 1.6 $ */
-/* $Date: 2006/12/28 01:27:24 $ */ 
+/* $Date: 2006/12/28 01:27:24 $ */
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
@@ -34765,16 +34858,16 @@ int ctr_decrypt(const unsigned char *ct, unsigned char *pt, unsigned long len, s
    Initialize a CTR context
    @param cipher      The index of the cipher desired
    @param IV          The initial vector
-   @param key         The secret key 
+   @param key         The secret key
    @param keylen      The length of the secret key (octets)
    @param num_rounds  Number of rounds in the cipher desired (0 for default)
    @param ctr_mode    The counter mode (CTR_COUNTER_LITTLE_ENDIAN or CTR_COUNTER_BIG_ENDIAN)
    @param ctr         The CTR state to initialize
    @return CRYPT_OK if successful
 */
-int ctr_start(               int   cipher, 
-              const unsigned char *IV, 
-              const unsigned char *key,       int keylen, 
+int ctr_start(               int   cipher,
+              const unsigned char *IV,
+              const unsigned char *key,       int keylen,
                              int  num_rounds, int ctr_mode,
                    symmetric_CTR *ctr)
 {
@@ -34834,14 +34927,14 @@ int ctr_start(               int   cipher,
       }
    }
 
-   return cipher_descriptor[ctr->cipher].ecb_encrypt(ctr->ctr, ctr->pad, &ctr->key); 
+   return cipher_descriptor[ctr->cipher].ecb_encrypt(ctr->ctr, ctr->pad, &ctr->key);
 }
 
 #endif
 
 /* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_start.c,v $ */
 /* $Revision: 1.15 $ */
-/* $Date: 2007/02/23 14:18:37 $ */ 
+/* $Date: 2007/02/23 14:18:37 $ */
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
@@ -34858,7 +34951,7 @@ int ctr_start(               int   cipher,
   @file ctr_setiv.c
   CTR implementation, set IV, Tom St Denis
 */
-  
+
 #ifdef LTC_CTR_MODE
 
 /**
@@ -34871,7 +34964,7 @@ int ctr_start(               int   cipher,
 int ctr_setiv(const unsigned char *IV, unsigned long len, symmetric_CTR *ctr)
 {
    int err;
-   
+
    LTC_ARGCHK(IV  != NULL);
    LTC_ARGCHK(ctr != NULL);
 
@@ -34879,25 +34972,25 @@ int ctr_setiv(const unsigned char *IV, unsigned long len, symmetric_CTR *ctr)
    if ((err = cipher_is_valid(ctr->cipher)) != CRYPT_OK) {
       return err;
    }
-   
+
    if (len != (unsigned long)ctr->blocklen) {
       return CRYPT_INVALID_ARG;
    }
 
    /* set IV */
    XMEMCPY(ctr->ctr, IV, len);
-   
+
    /* force next block */
    ctr->padlen = 0;
    return cipher_descriptor[ctr->cipher].ecb_encrypt(IV, ctr->pad, &ctr->key);
 }
 
-#endif 
+#endif
 
 
 /* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_setiv.c,v $ */
 /* $Revision: 1.7 $ */
-/* $Date: 2006/12/28 01:27:24 $ */ 
+/* $Date: 2006/12/28 01:27:24 $ */
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
@@ -34943,7 +35036,7 @@ int ctr_getiv(unsigned char *IV, unsigned long *len, symmetric_CTR *ctr)
 
 /* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_getiv.c,v $ */
 /* $Revision: 1.7 $ */
-/* $Date: 2006/12/28 01:27:24 $ */ 
+/* $Date: 2006/12/28 01:27:24 $ */
 
 #undef M
 #undef S
@@ -34960,8 +35053,8 @@ int ctr_getiv(unsigned char *IV, unsigned long *len, symmetric_CTR *ctr)
 
 typedef unsigned char u8;
 typedef ulong32 u32;
-typedef ulong64 u64;
-typedef long64 i64;
+typedef uint64_t u64;
+typedef int64_t i64;
 typedef i64 gf[16];
 
 static const u8
@@ -35000,7 +35093,7 @@ sv car25519(gf o)
   int i;
   i64 c;
   FOR(i,16) {
-    o[i]+=(1LL<<16);
+    o[i]+=((i64)1<<16);
     c=o[i]>>16;
     o[(i+1)*(i<15)]+=c-1+37*(c-1)*(i==15);
     o[i]-=c<<16;

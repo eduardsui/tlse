@@ -1,20 +1,20 @@
 #ifndef TLSE_H
 #define TLSE_H
 
-// #define DEBUG
+/*  #define DEBUG */
 
-// define TLS_LEGACY_SUPPORT to support TLS 1.1/1.0 (legacy)
-// legacy support it will use an additional 272 bytes / context
+/*  define TLS_LEGACY_SUPPORT to support TLS 1.1/1.0 (legacy) */
+/*  legacy support it will use an additional 272 bytes / context */
 #ifndef NO_TLS_LEGACY_SUPPORT
 #define TLS_LEGACY_SUPPORT
 #endif
-// SSL_* style blocking APIs
+/*  SSL_* style blocking APIs */
 #ifndef NO_SSL_COMPATIBLE_INTERFACE
 #define SSL_COMPATIBLE_INTERFACE
 #endif
-// support ChaCha20/Poly1305
+/*  support ChaCha20/Poly1305 */
 #if !defined(__BIG_ENDIAN__) && ((!defined(__BYTE_ORDER)) || (__BYTE_ORDER == __LITTLE_ENDIAN))
-    // not working on big endian machines
+    /*  not working on big endian machines */
     #ifndef NO_TLS_WITH_CHACHA20_POLY1305
         #define TLS_WITH_CHACHA20_POLY1305
     #endif
@@ -22,32 +22,32 @@
 #ifndef NO_TLS_13
 #define WITH_TLS_13
 #endif
-// support forward secrecy (Diffie-Hellman ephemeral)
+/*  support forward secrecy (Diffie-Hellman ephemeral) */
 #ifndef NO_TLS_FORWARD_SECRECY
 #define TLS_FORWARD_SECRECY
 #endif
-// support client-side ECDHE
+/*  support client-side ECDHE */
 #ifndef NO_TLS_CLIENT_ECDHE
 #define TLS_CLIENT_ECDHE
 #endif
-// suport ecdsa
+/*  suport ecdsa */
 #ifndef NO_TLS_ECDSA_SUPPORTED
 #define TLS_ECDSA_SUPPORTED
 #endif
 #ifndef NO_TLS_CURVE25519
 #define TLS_CURVE25519
 #endif
-// suport ecdsa client-side
+/*  suport ecdsa client-side */
 #define TLS_CLIENT_ECDSA
-// TLS renegotiation is disabled by default (secured or not)
-// do not uncomment next line!
-// #define TLS_ACCEPT_SECURE_RENEGOTIATION
-// basic superficial X509v1 certificate support
+/*  TLS renegotiation is disabled by default (secured or not) */
+/*  do not uncomment next line! */
+/*  #define TLS_ACCEPT_SECURE_RENEGOTIATION */
+/*  basic superficial X509v1 certificate support */
 #ifndef NO_TLS_X509_V1_SUPPORT
 #define TLS_X509_V1_SUPPORT
 #endif
 
-// disable TLS_RSA_WITH_* ciphers
+/*  disable TLS_RSA_WITH_* ciphers */
 #ifndef NO_TLS_ROBOT_MITIGATION
 #define TLS_ROBOT_MITIGATION
 #endif
@@ -94,7 +94,7 @@
 #define TLS_RSA_WITH_AES_128_GCM_SHA256       0x009C
 #define TLS_RSA_WITH_AES_256_GCM_SHA384       0x009D
 
-// forward secrecy
+/*  forward secrecy */
 #define TLS_DHE_RSA_WITH_AES_128_CBC_SHA      0x0033
 #define TLS_DHE_RSA_WITH_AES_256_CBC_SHA      0x0039
 #define TLS_DHE_RSA_WITH_AES_128_CBC_SHA256   0x0067
@@ -202,14 +202,14 @@ typedef enum {
     no_error = 255
 } TLSAlertDescription;
 
-// forward declarations
+/*  forward declarations */
 struct TLSPacket;
 struct TLSCertificate;
 struct TLSContext;
 struct ECCCurveParameters;
 typedef struct TLSContext TLS;
 typedef struct TLSCertificate Certificate;
-// webrtc datachannel
+/*  webrtc datachannel */
 struct TLSRTCPeerConnection;
 
 typedef int (*tls_validation_function)(struct TLSContext *context, struct TLSCertificate **certificate_chain, int len);
@@ -220,9 +220,9 @@ typedef int (*tls_validation_function)(struct TLSContext *context, struct TLSCer
   from multiple threads, you'll need to call tls_init() once, from a single thread,
   before using the library.
  */
-void tls_init();
+void tls_init(void);
 unsigned char *tls_pem_decode(const unsigned char *data_in, unsigned int input_length, int cert_index, unsigned int *output_len);
-struct TLSCertificate *tls_create_certificate();
+struct TLSCertificate *tls_create_certificate(void);
 int tls_certificate_valid_subject(struct TLSCertificate *cert, const char *subject);
 int tls_certificate_valid_subject_name(const unsigned char *cert_subject, const char *subject);
 int tls_certificate_is_valid(struct TLSCertificate *cert);
@@ -269,6 +269,7 @@ void tls_read_clear(struct TLSContext *context);
 int tls_read(struct TLSContext *context, unsigned char *buf, unsigned int size);
 
 struct TLSContext *tls_create_context(unsigned char is_server, unsigned short version);
+void tls_set_minimum_version(struct TLSContext *context, unsigned short version);
 const struct ECCCurveParameters *tls_set_curve(struct TLSContext *context, const struct ECCCurveParameters *curve);
 
 /* Create a context for a given client, from a server context. Returns NULL on error. */
@@ -299,6 +300,10 @@ int tls_parse_message(struct TLSContext *context, unsigned char *buf, int buf_le
 int tls_certificate_verify_signature(struct TLSCertificate *cert, struct TLSCertificate *parent);
 int tls_certificate_chain_is_valid(struct TLSCertificate **certificates, int len);
 int tls_certificate_chain_is_valid_root(struct TLSContext *context, struct TLSCertificate **certificates, int len);
+const unsigned char *tls_certificate_der(struct TLSCertificate *certificate, unsigned int *length);
+struct TLSCertificate *tls_certificate_parse(const unsigned char *der, unsigned int length);
+int tls_sha1(const unsigned char *data, unsigned int length, unsigned char *digest);
+int tls_verify_signed_data(const unsigned char *signer, unsigned int signer_len, const unsigned char *oid, unsigned int oid_len, const unsigned char *data, unsigned int data_len, const unsigned char *signature, unsigned int signature_len);
 
 /*
   Add a certificate or a certificate chain to the given context, in PEM form.
@@ -360,7 +365,7 @@ int tls_client_verified(struct TLSContext *context);
 const char *tls_sni(struct TLSContext *context);
 int tls_sni_set(struct TLSContext *context, const char *sni);
 int tls_sni_nset(struct TLSContext *context, const char *sni, unsigned int len);
-// set DTLS-SRTP mode for DTLS context
+/*  set DTLS-SRTP mode for DTLS context */
 int tls_srtp_set(struct TLSContext *context);
 int tls_srtp_key(struct TLSContext *context, unsigned char *buffer);
 
@@ -392,16 +397,16 @@ void tls_print_certificate(const char *fname);
 int tls_add_alpn(struct TLSContext *context, const char *alpn);
 int tls_alpn_contains(struct TLSContext *context, const char *alpn, unsigned char alpn_size);
 const char *tls_alpn(struct TLSContext *context);
-// useful when renewing certificates for servers, without the need to restart the server
+/*  useful when renewing certificates for servers, without the need to restart the server */
 int tls_clear_certificates(struct TLSContext *context);
 int tls_make_ktls(struct TLSContext *context, int socket);
 int tls_unmake_ktls(struct TLSContext *context, int socket);
 /*
   Creates a new DTLS random cookie secret to be used in HelloVerifyRequest (server-side).
-  It is recommended to call this function from time to time, to protect against some 
+  It is recommended to call this function from time to time, to protect against some
   DoS attacks.
 */
-void dtls_reset_cookie_secret();
+void dtls_reset_cookie_secret(void);
 
 int tls_remote_error(struct TLSContext *context);
 
@@ -426,17 +431,18 @@ int tls_remote_error(struct TLSContext *context);
         SOCKET_RECV_CALLBACK recv;
         SOCKET_SEND_CALLBACK send;
         void *user_data;
+        int pendingwrite;
     } SSLUserData;
 
-    int  SSL_library_init();
-    void SSL_load_error_strings();
-    void OpenSSL_add_all_algorithms();
-    void OpenSSL_add_all_ciphers();
-    void OpenSSL_add_all_digests();
-    void EVP_cleanup();
+    int  SSL_library_init(void);
+    void SSL_load_error_strings(void);
+    void OpenSSL_add_all_algorithms(void);
+    void OpenSSL_add_all_ciphers(void);
+    void OpenSSL_add_all_digests(void);
+    void EVP_cleanup(void);
 
-    int SSLv3_server_method();
-    int SSLv3_client_method();
+    int SSLv3_server_method(void);
+    int SSLv3_client_method(void);
     struct TLSContext *SSL_new(struct TLSContext *context);
     int SSL_CTX_use_certificate_file(struct TLSContext *context, const char *filename, int dummy);
     int SSL_CTX_use_PrivateKey_file(struct TLSContext *context, const char *filename, int dummy);
@@ -475,7 +481,7 @@ int tls_remote_error(struct TLSContext *context);
 #endif
 
 #ifdef __cplusplus
-}  // extern "C"
+}  /*  extern "C" */
 #endif
 
 #endif
