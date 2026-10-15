@@ -110,16 +110,16 @@ int send(int socket, const void *buffer, size_t length, int flags);
 #endif
 #include <limits.h>
 #if defined(_MSC_VER) && (_MSC_VER <= 1600)
-	#define TLSE_INLINE _inline
+    #define TLSE_INLINE _inline
 #elif defined(_MSC_VER) && (_MSC_VER > 1600)
-	#define TLSE_INLINE __inline
+    #define TLSE_INLINE __inline
 #elif defined(__GNUC__) || defined(__clang__)
-	#define TLSE_INLINE __inline__
+    #define TLSE_INLINE __inline__
 #elif defined(__cplusplus) || (defined(__STDC_VERSION__) \
-		&& __STDC_VERSION__ >= 199901L)
-	#define TLSE_INLINE inline
+        && __STDC_VERSION__ >= 199901L)
+    #define TLSE_INLINE inline
 #else
-	#define TLSE_INLINE
+    #define TLSE_INLINE
 #endif
 /************************ START ARCH *****************************************/
 /* AIX: not compliant with SUS until 5L */
@@ -479,30 +479,30 @@ void __llong(void *where, uint64_t value) {
 
 #if !defined(NOT_POSIX)
 #if defined(TLSE_USEWARNINGS)
-	#warning compiling for POSIX-SUS
+    #warning compiling for POSIX-SUS
 #endif
 #include <stdint.h>
 #include <stdarg.h>
 #if !defined(_WIN32) && !defined(macintosh)
-	#include <unistd.h>
+    #include <unistd.h>
 #endif
 #else
 #ifndef MPW_C
 #if defined(TLSE_USEWARNINGS)
-	#warning compiling with compatibility stubs
+    #warning compiling with compatibility stubs
 #endif
 #endif
 #endif
 
 /************************ END ARCH *******************************************/
 #if !defined(NOT_POSIX)
-	#if defined(TLSE_USEWARNINGS)
-	    #warning compiling for POSIX-SUS
-	#endif
+    #if defined(TLSE_USEWARNINGS)
+        #warning compiling for POSIX-SUS
+    #endif
     #include <stdint.h>
-	#if !defined(_WIN32) && !defined(macintosh)
-	    #include <unistd.h>
-	#endif
+    #if !defined(_WIN32) && !defined(macintosh)
+        #include <unistd.h>
+    #endif
     #include <stdarg.h>
 #else
     #ifndef MPW_C
@@ -606,8 +606,8 @@ void __llong(void *where, uint64_t value) {
 #undef I
 #endif
 #ifdef TLS_WITH_CHACHA20_POLY1305
-	uint32_t chacha_rng_word(void);
-	#define MP_FALLBACK_GEN_RANDOM() chacha_rng_word()
+    uint32_t chacha_rng_word(void);
+    #define MP_FALLBACK_GEN_RANDOM() chacha_rng_word()
 #endif
 #include "libtomcrypt.c"
 #ifdef TLS_I_MACRO
@@ -898,13 +898,13 @@ static TLSE_INLINE void chacha_keysetup(chacha_ctx *x, const djb_u8 *k, djb_u32 
     x->input[5] = _private_tls_U8TO32_LITTLE(k + 4);
     x->input[6] = _private_tls_U8TO32_LITTLE(k + 8);
     x->input[7] = _private_tls_U8TO32_LITTLE(k + 12);
-	if (kbits == 256) { /* recommended */
+    if (kbits == 256) { /* recommended */
         k += 16;
         constants = sigma;
     } else { /* kbits == 128 */
         constants = tau;
     }
-	x->input[8] =  _private_tls_U8TO32_LITTLE(k + 0);
+    x->input[8] =  _private_tls_U8TO32_LITTLE(k + 0);
     x->input[9] = _private_tls_U8TO32_LITTLE(k + 4);
     x->input[10] = _private_tls_U8TO32_LITTLE(k + 8);
     x->input[11] = _private_tls_U8TO32_LITTLE(k + 12);
