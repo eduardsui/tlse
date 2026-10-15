@@ -6541,7 +6541,11 @@ static int _private_tls_dh_probable_prime(void *number) {
     void *base;
     void *value;
     unsigned char *randombytes;
+#if CRYPT < 0x0118
+    unsigned long remainder;
+#else
     ltc_mp_digit remainder;
+#endif
     unsigned int bytes;
     unsigned int bits;
     unsigned int shifts;
