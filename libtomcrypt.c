@@ -2229,88 +2229,88 @@ extern "C" {
  */
 #include <stddef.h>
 #if !defined(INT8_MAX) && !defined(_INTTYPES_H_) && !defined(_INTTYPES_H) && !defined(__INTTYPES_INCLUDED)
-	#if !defined(_MACHTYPES_H_)
-		#if defined(__alpha) || (defined(_MSC_VER) && defined(_WIN32)) \
-						|| (defined(__GNUC__) && defined(_WIN32)) \
-						|| (defined(__GNUC__) && defined(__MACH__))
-			typedef unsigned int uint32_t;
-			typedef int int32_t;
-		#else
-			typedef unsigned long uint32_t;
-			#if !defined(__MWERKS__) || !defined(__MACH__)
-				typedef long int32_t;
-			#endif /*  MWERKS MACH defs int32_t but not uint32_t */
-		#endif
-		#if !defined(__MWERKS__) || !defined(__MACH__)
-			#if (defined(__GNUC__) && defined(_WIN32)) \
-					|| (defined(__GNUC__) && defined(__MACH__)) \
-					|| (defined(__GNUC__) && defined(macintosh))
-				typedef signed char int8_t;
-			#else
-				typedef char int8_t;
-			#endif
-		#endif /*  MWERKS MACH defs int8_t */
-		typedef unsigned char uint8_t;
-		typedef short int16_t;
-		typedef unsigned short uint16_t;
-		#if (defined(_MSC_VER) && defined(_WIN32) && !defined(__clang__)) \
-			|| (defined(__BCPLUSPLUS__) \
-					&& __BCPLUSPLUS__ >= 0x520 && defined(_WIN32)) \
-			|| (defined(__SC__) && defined(__DMC__)) \
-			|| (defined(__WATCOMC__) && defined(_WIN32)) \
-			|| (defined(__MWERKS__) && defined(NOCRUNTIME) && defined(_WIN32))
-			typedef __int64 int64_t; typedef unsigned __int64 uint64_t;
-			#if defined(_WIN64)
-				#define TOMCRYPT_64BIT
-			#endif
-		#elif (defined(__MINGW32__) \
-			||(defined(__clang__)) \
-			||(defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG >= 8) \
-			||(defined(__GNUC__)) \
-			||(defined(__CYGWIN__)) \
-			||(defined(__DJGPP__) && __DJGPP__ >= 2) \
-			||(defined(__MWERKS__) && !defined(NOCRUNTIME) )) \
-			||(defined(SIZEOF_LONG) && SIZEOF_LONG == 8)
-			/* && __option(longlong))) for MWERKS? */
-		#	ifndef INT64_MAX
-		#		ifndef __MWERKS__
-				typedef long long int64_t; typedef unsigned long long uint64_t;
-		#		define TOMCRYPT_64BIT
-		#		endif
-		#	elif defined(__LP64__) && !defined(_INT64_T)
-				typedef long int64_t; typedef unsigned long uint64_t;
-		#		define TOMCRYPT_64BIT
-		#	elif defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) \
-					|| defined(_M_AMD64) || defined(__ia64__) || defined(_IA64) \
-					|| defined(__ppc64__) || defined(__powerpc64__) \
-					|| defined(__aarch64__) || defined(__LP64__) || defined(_LP64)
-		#		define TOMCRYPT_64BIT
-		#	endif
-		#else /*  !(defined(_M_X64) || defined(__LP64__)) */
-			typedef long int64_t; typedef unsigned long uint64_t;
-		#endif
-		#ifdef TOMCRYPT_64BIT
-		   typedef int64_t                 intptr_t;
-		   typedef uint64_t                uintptr_t;
-		#else
-		   typedef int32_t                 intptr_t;
-		   typedef uint32_t                uintptr_t;
-		#endif
-	#else
-		typedef u_int8_t                uint8_t;
-		typedef u_int16_t               uint16_t;
-		typedef u_int32_t               uint32_t;
-		typedef u_int64_t               uint64_t;
-		#ifdef  __64BIT__
-			typedef int64_t                 intptr_t;
-			typedef uint64_t                uintptr_t;
-		#else
-			#if !defined(__APPLE_CC__) || (__APPLE_CC__ < 784)
-			   typedef int32_t                 intptr_t;
-			   typedef uint32_t                uintptr_t;
-			#endif
-		#endif
-	#endif
+    #if !defined(_MACHTYPES_H_)
+        #if defined(__alpha) || (defined(_MSC_VER) && defined(_WIN32)) \
+                        || (defined(__GNUC__) && defined(_WIN32)) \
+                        || (defined(__GNUC__) && defined(__MACH__))
+            typedef unsigned int uint32_t;
+            typedef int int32_t;
+        #else
+            typedef unsigned long uint32_t;
+            #if !defined(__MWERKS__) || !defined(__MACH__)
+                typedef long int32_t;
+            #endif /*  MWERKS MACH defs int32_t but not uint32_t */
+        #endif
+        #if !defined(__MWERKS__) || !defined(__MACH__)
+            #if (defined(__GNUC__) && defined(_WIN32)) \
+                    || (defined(__GNUC__) && defined(__MACH__)) \
+                    || (defined(__GNUC__) && defined(macintosh))
+                typedef signed char int8_t;
+            #else
+                typedef char int8_t;
+            #endif
+        #endif /*  MWERKS MACH defs int8_t */
+        typedef unsigned char uint8_t;
+        typedef short int16_t;
+        typedef unsigned short uint16_t;
+        #if (defined(_MSC_VER) && defined(_WIN32) && !defined(__clang__)) \
+            || (defined(__BCPLUSPLUS__) \
+                    && __BCPLUSPLUS__ >= 0x520 && defined(_WIN32)) \
+            || (defined(__SC__) && defined(__DMC__)) \
+            || (defined(__WATCOMC__) && defined(_WIN32)) \
+            || (defined(__MWERKS__) && defined(NOCRUNTIME) && defined(_WIN32))
+            typedef __int64 int64_t; typedef unsigned __int64 uint64_t;
+            #if defined(_WIN64)
+                #define TOMCRYPT_64BIT
+            #endif
+        #elif (defined(__MINGW32__) \
+            ||(defined(__clang__)) \
+            ||(defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG >= 8) \
+            ||(defined(__GNUC__)) \
+            ||(defined(__CYGWIN__)) \
+            ||(defined(__DJGPP__) && __DJGPP__ >= 2) \
+            ||(defined(__MWERKS__) && !defined(NOCRUNTIME) )) \
+            ||(defined(SIZEOF_LONG) && SIZEOF_LONG == 8)
+            /* && __option(longlong))) for MWERKS? */
+        #	ifndef INT64_MAX
+        #		ifndef __MWERKS__
+                typedef long long int64_t; typedef unsigned long long uint64_t;
+        #		define TOMCRYPT_64BIT
+        #		endif
+        #	elif defined(__LP64__) && !defined(_INT64_T)
+                typedef long int64_t; typedef unsigned long uint64_t;
+        #		define TOMCRYPT_64BIT
+        #	elif defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) \
+                    || defined(_M_AMD64) || defined(__ia64__) || defined(_IA64) \
+                    || defined(__ppc64__) || defined(__powerpc64__) \
+                    || defined(__aarch64__) || defined(__LP64__) || defined(_LP64)
+        #		define TOMCRYPT_64BIT
+        #	endif
+        #else /*  !(defined(_M_X64) || defined(__LP64__)) */
+            typedef long int64_t; typedef unsigned long uint64_t;
+        #endif
+        #ifdef TOMCRYPT_64BIT
+           typedef int64_t                 intptr_t;
+           typedef uint64_t                uintptr_t;
+        #else
+           typedef int32_t                 intptr_t;
+           typedef uint32_t                uintptr_t;
+        #endif
+    #else
+        typedef u_int8_t                uint8_t;
+        typedef u_int16_t               uint16_t;
+        typedef u_int32_t               uint32_t;
+        typedef u_int64_t               uint64_t;
+        #ifdef  __64BIT__
+            typedef int64_t                 intptr_t;
+            typedef uint64_t                uintptr_t;
+        #else
+            #if !defined(__APPLE_CC__) || (__APPLE_CC__ < 784)
+               typedef int32_t                 intptr_t;
+               typedef uint32_t                uintptr_t;
+            #endif
+        #endif
+    #endif
 #endif
 #ifdef MP_8BIT
 typedef uint8_t    mp_digit;
