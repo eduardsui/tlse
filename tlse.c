@@ -8015,9 +8015,9 @@ int _private_tls_parse_key_share(struct TLSContext *context, const unsigned char
                 curve25519_key public_key;
                 tls_random(secret, 32);
 
-                secret[0] &= 248;
+                /* secret[0] &= 248;
                 secret[31] &= 127;
-                secret[31] |= 64;
+                secret[31] |= 64; */
 
                 /*  use finished key to store public key */
                 TLS_FREE(context->finished_key);
@@ -9157,9 +9157,9 @@ int tls_parse_server_key_exchange(struct TLSContext *context, const unsigned cha
 
             tls_random(context->client_secret, 32);
 
-            context->client_secret[0] &= 248;
+            /* context->client_secret[0] &= 248;
             context->client_secret[31] &= 127;
-            context->client_secret[31] |= 64;
+            context->client_secret[31] |= 64; */
 
             TLS_FREE(context->premaster_key);
             context->premaster_key = (unsigned char *)TLS_MALLOC(32);
