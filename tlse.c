@@ -9393,10 +9393,7 @@ int tls_parse_verify_tls13(struct TLSContext *context, const unsigned char *buf,
     size = buf[0] * 0x10000 + buf[1] * 0x100 + buf[2];
 
     if (size < 2)
-        return buf_len;
-
-
-
+        return TLS_BROKEN_PACKET;
 
     /*  first 64 bytes to 0x20 (32) */
     memset(signing_data, 0x20, 64);
