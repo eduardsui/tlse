@@ -14245,8 +14245,19 @@ struct TLSContext *SSL_new(struct TLSContext *context) {
     unsigned int i;
     if (!context)
         return NULL;
-    if (context->is_server)
-        return tls_accept(context);
+    if (context->is_server) {
+        struct TLSContext *ctx = tls_accept(context);
+        if (context->user_data) {
+            ctx->user_data = (SSLUserData *)TLS_MALLOC(sizeof(SSLUserData));
+            memset(ctx->user_data, 0, sizeof(SSLUserData));
+            ((SSLUserData *)ctx->user_data)->fd = ((SSLUserData *)context->user_data)->fd;
+            ((SSLUserData *)ctx->user_data)->certificate_verify = ((SSLUserData *)context->user_data)->certificate_verify;
+            ((SSLUserData *)ctx->user_data)->recv = ((SSLUserData *)context->user_data)->recv;
+            ((SSLUserData *)ctx->user_data)->send = ((SSLUserData *)context->user_data)->send;
+            ((SSLUserData *)ctx->user_data)->user_data  = ((SSLUserData *)context->user_data)->user_data;
+        }
+        return ctx;
+    }
     child = tls_create_context(0, context->version);
     if (!child)
         return NULL;
