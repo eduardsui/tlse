@@ -2376,6 +2376,12 @@ unsigned char *_private_tls_decrypt_dhe(struct TLSContext *context, const unsign
     return out;
 }
 
+#if CRYPT >= 0x0118
+int _private_tls_is_point(ecc_key *key);
+#else
+static int _private_tls_is_point(ecc_key *key);
+#endif
+
 unsigned char *_private_tls_decrypt_ecc_dhe(struct TLSContext *context, const unsigned char *buffer, unsigned int len, unsigned int *size, int clear_key) {
     const struct ECCCurveParameters *curve;
     const ltc_ecc_set_type *dp;
@@ -2401,6 +2407,11 @@ unsigned char *_private_tls_decrypt_ecc_dhe(struct TLSContext *context, const un
     memset(&client_key, 0, sizeof(client_key));
     if (ecc_ansi_x963_import_ex(buffer, len, &client_key, dp)) {
         DEBUG_PRINT0("Error importing ECC DHE key\n");
+        return NULL;
+    }
+    if (_private_tls_is_point(&client_key) != CRYPT_OK) {
+        DEBUG_PRINT0("ECC DHE key is not on the curve\n");
+        ecc_free(&client_key);
         return NULL;
     }
     out = (unsigned char *)TLS_MALLOC(len);
@@ -8081,6 +8092,11 @@ int _private_tls_parse_key_share(struct TLSContext *context, const unsigned char
         memset(&client_key, 0, sizeof(client_key));
         if (ecc_ansi_x963_import_ex(buffer, key_size, &client_key, dp)) {
             DEBUG_PRINT0("Error importing ECC DHE key\n");
+            return TLS_GENERIC_ERROR;
+        }
+        if (_private_tls_is_point(&client_key) != CRYPT_OK) {
+            DEBUG_PRINT0("ECC key share is not on the curve\n");
+            ecc_free(&client_key);
             return TLS_GENERIC_ERROR;
         }
         out2 = (unsigned char *)TLS_MALLOC(key_size);
